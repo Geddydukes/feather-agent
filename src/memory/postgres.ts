@@ -169,11 +169,10 @@ export class PostgresMemoryManager implements MemoryManager {
         ? this.summarizer(historicTurns.map((turn) => cloneTurn(turn)))
         : this.defaultSummarize(historicTurns);
 
-      const summaryCreatedAt = historicTurns[0]?.createdAt ?? new Date(0);
       const summaryTurn = this.withTokenMetadata({
         role: this.summaryRole,
         content: summaryContent,
-        createdAt: summaryCreatedAt,
+        createdAt: new Date(),
       });
 
       await client.query(`DELETE FROM ${this.qualifiedTable} WHERE session_id = $1`, [sessionId]);

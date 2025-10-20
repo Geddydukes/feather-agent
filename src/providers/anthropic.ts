@@ -151,6 +151,8 @@ export function anthropic(cfg: AnthropicConfig): ChatProvider {
         if (aborted) {
           throw createAbortError(opts?.signal?.reason);
         }
+      } finally {
+        reader.releaseLock();
       }
     },
     price: pricing,
