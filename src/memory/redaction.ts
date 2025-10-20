@@ -83,22 +83,25 @@ class RedactingMemoryManager<TTurn extends MemoryTurn> implements MemoryManager<
   }
 
   async append(sessionId: string, turn: TTurn): Promise<void> {
-    if (!this.shouldRedact(sessionId, turn)) {
-      await this.base.append(sessionId, turn);
+    const processed = this.applyRedaction(sessionId, turn);
+    if (processed === null) {
       return;
     }
-
-    const context: MemoryRedactionContext = { sessionId };
-    const sanitized = this.options.redactor(cloneTurn(turn), context);
-    if (!sanitized) {
-      return;
-    }
-
-    await this.base.append(sessionId, ensureTurn(sanitized));
+    await this.base.append(sessionId, processed);
   }
 
-  async getContext(sessionId: string, options?: Parameters<MemoryManager<TTurn>["getContext"]>[1]): Promise<TTurn[]> {
-    return this.base.getContext(sessionId, options);
+  async getContext(
+    sessionId: string,
+    options?: Parameters<MemoryManager<TTurn>["getContext"]>[1]
+  ): Promise<TTurn[]> {
+    const turns = await this.base.getContext(sessionId, options);
+    if (!turns.length) {
+      return [];
+    }
+
+    return turns
+      .map((turn) => this.applyRedaction(sessionId, turn))
+      .filter((turn): turn is TTurn => turn !== null);
   }
 
   async summarize(sessionId: string): Promise<void> {
@@ -115,9 +118,24 @@ class RedactingMemoryManager<TTurn extends MemoryTurn> implements MemoryManager<
     await this.base.trim(sessionId, options);
   }
 
+  private applyRedaction(sessionId: string, turn: TTurn): TTurn | null {
+    const cloned = cloneTurn(turn);
+
+    if (!this.shouldRedact(sessionId, cloned)) {
+      return cloned;
+    }
+
+    const context: MemoryRedactionContext = { sessionId };
+    const sanitized = this.options.redactor(cloned, context);
+    if (!sanitized) {
+      return null;
+    }
+
+    return ensureTurn(sanitized);
+  }
+
   private shouldRedact(sessionId: string, turn: TTurn): boolean {
-    const enabled = this.toggle.isEnabled(sessionId);
-    if (!enabled) {
+    if (!this.toggle.isEnabled(sessionId)) {
       return false;
     }
 

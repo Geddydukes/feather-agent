@@ -86,6 +86,23 @@ export type AgentToolCollection =
   | Readonly<Record<string, Tool>>
   | ReadonlyMap<string, Tool>;
 
+export interface AgentContextConfig {
+  builder?: ContextBuilder | ContextBuilderOptions;
+  baseMessages?: readonly AgentMessage[];
+  ragMessages?: readonly AgentMessage[];
+  digests?: readonly ContextDigest[];
+  maxRecentTurns?: number;
+  maxTokens?: number;
+  maxTurns?: number;
+}
+
+export interface AgentContextOptions extends MemoryGetContextOptions {
+  maxRecentTurns?: number;
+  baseMessages?: readonly AgentMessage[];
+  ragMessages?: readonly AgentMessage[];
+  digests?: readonly ContextDigest[];
+}
+
 export interface AgentConfig<TTurn extends AgentMemoryTurn = AgentMemoryTurn> {
   id?: string;
   metadata?: Record<string, unknown>;
@@ -99,6 +116,8 @@ export interface AgentConfig<TTurn extends AgentMemoryTurn = AgentMemoryTurn> {
   policies?: AgentPolicies | AgentPolicyConfig;
   quotas?: AgentQuotaManager | AgentQuotaConfig;
   toolCache?: ToolCache | ToolCacheOptions;
+  shouldStop?: AgentShouldStopEvaluator;
+  context?: AgentContextConfig;
 }
 
 export interface AgentRunOptions {
@@ -106,8 +125,9 @@ export interface AgentRunOptions {
   input: AgentUserMessage;
   metadata?: Record<string, unknown>;
   signal?: AbortSignal;
-  context?: MemoryGetContextOptions;
+  context?: AgentContextOptions;
   maxIterations?: number;
+  shouldStop?: AgentShouldStopEvaluator;
 }
 
 export interface AgentActionTrace {
@@ -126,6 +146,29 @@ export interface AgentStepTrace {
   plan: AgentPlan;
   actions: AgentActionTrace[];
 }
+
+export type AgentShouldStopDecision =
+  | false
+  | true
+  | string
+  | AgentAssistantMessage
+  | {
+      stop?: boolean;
+      reason?: string;
+      message?: AgentAssistantMessage | string;
+    };
+
+export interface AgentShouldStopContext {
+  sessionId: string;
+  iteration: number;
+  plan: AgentPlan;
+  steps: readonly AgentStepTrace[];
+  metadata?: Record<string, unknown>;
+}
+
+export type AgentShouldStopEvaluator = (
+  context: AgentShouldStopContext
+) => AgentShouldStopDecision | Promise<AgentShouldStopDecision>;
 
 export type AgentErrorCode =
   | "ABORTED"

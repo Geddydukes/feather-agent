@@ -1,22 +1,21 @@
-/**
- * Creates a standardised AbortError instance. The optional reason is preserved
- * when provided by upstream signals.
- */
 export function createAbortError(reason?: unknown): Error {
-  if (reason instanceof Error) {
-    reason.name = "AbortError";
+  if (reason instanceof DOMException && reason.name === "AbortError") {
     return reason;
   }
-  const error = new Error("Aborted");
-  error.name = "AbortError";
-  return error;
+
+  if (reason instanceof Error) {
+    const abort = new DOMException(reason.message || "Aborted", "AbortError");
+    try {
+      (abort as any).cause = reason;
+    } catch {
+      // Ignore if cause is read-only.
+    }
+    return abort;
+  }
+
+  return new DOMException("Aborted", "AbortError");
 }
 
-/**
- * Forwards abort events from the source signal to the target controller. A
- * cleanup function is returned so callers can remove the listener once the
- * operation completes.
- */
 export function forwardAbortSignal(
   source: AbortSignal | undefined,
   target: AbortController

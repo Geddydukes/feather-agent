@@ -33,11 +33,11 @@ export function openai(cfg: OpenAIConfig): ChatProvider {
         }),
         signal: opts?.signal
       });
-      const requestId = response.headers.get("x-request-id") ?? response.headers.get("request-id") ?? undefined;
+      const requestId = getHeader(response, "x-request-id") ?? getHeader(response, "request-id") ?? undefined;
       if (!response.ok) {
         const message = await readErrorPayload(response);
         throw new LLMError(
-          `OpenAI error ${response.status}: ${message}`,
+          `OpenAI ${response.status}: ${message}`,
           "openai",
           response.status,
           requestId,
@@ -67,11 +67,11 @@ export function openai(cfg: OpenAIConfig): ChatProvider {
         }),
         signal: opts?.signal
       });
-      const requestId = response.headers.get("x-request-id") ?? response.headers.get("request-id") ?? undefined;
+      const requestId = getHeader(response, "x-request-id") ?? getHeader(response, "request-id") ?? undefined;
       if (!response.ok || !response.body) {
         const message = await readErrorPayload(response);
         throw new LLMError(
-          `OpenAI stream error ${response.status}: ${message}`,
+          `OpenAI ${response.status}: ${message}`,
           "openai",
           response.status,
           requestId,
@@ -81,12 +81,27 @@ export function openai(cfg: OpenAIConfig): ChatProvider {
       }
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      let aborted = false;
+
+      const onAbort = () => {
+        if (aborted) {
+          return;
+        }
+        aborted = true;
+        if (typeof reader.cancel === "function") {
+          Promise.resolve(reader.cancel()).catch(() => {});
+        }
+      };
+
+      if (opts?.signal) {
+        if (opts.signal.aborted) {
+          onAbort();
+          throw createAbortError(opts.signal.reason);
+        }
+        opts.signal.addEventListener("abort", onAbort, { once: true });
+      }
       try {
         while (true) {
-          if (opts?.signal?.aborted) {
-            await reader.cancel();
-            throw createAbortError(opts.signal.reason);
-          }
           const { value, done } = await reader.read();
           if (done) break;
           const chunk = decoder.decode(value, { stream: true });
@@ -101,6 +116,16 @@ export function openai(cfg: OpenAIConfig): ChatProvider {
               if (delta) yield { content: delta };
             } catch {}
           }
+        }
+      } finally {
+        if (opts?.signal) {
+          opts.signal.removeEventListener("abort", onAbort);
+        }
+        if (typeof reader.releaseLock === "function") {
+          reader.releaseLock();
+        }
+        if (aborted) {
+          throw createAbortError(opts?.signal?.reason);
         }
       } finally {
         reader.releaseLock();
@@ -120,23 +145,29 @@ function priceForTokens(input?: number, output?: number, pricing?: { inputPer1K?
 
 async function readErrorPayload(response: Response): Promise<string> {
   try {
-    const json = await response.clone().json();
-    const message = json?.error?.message ?? json?.message;
-    if (typeof message === "string" && message.length > 0) {
-      return message;
+    const source: Partial<Response> = typeof response.clone === "function" ? response.clone() : response;
+    if (typeof source.json === "function") {
+      const json = await source.json();
+      const message = (json as any)?.error?.message ?? (json as any)?.message;
+      if (typeof message === "string" && message.length > 0) {
+        return message;
+      }
+      return JSON.stringify(json);
     }
-    return JSON.stringify(json);
   } catch {
     try {
-      return await response.text();
+      if (typeof response.text === "function") {
+        return await response.text();
+      }
     } catch {
       return "Unknown error";
     }
   }
+  return "Unknown error";
 }
 
 function parseRetryAfter(response: Response): number | undefined {
-  const header = response.headers.get("retry-after");
+  const header = getHeader(response, "retry-after");
   if (!header) {
     return undefined;
   }
@@ -154,4 +185,16 @@ function parseRetryAfter(response: Response): number | undefined {
 
 function isRetryableStatus(status: number): boolean {
   return status === 408 || status === 429 || (status >= 500 && status <= 599);
+}
+
+function getHeader(response: Response, name: string): string | undefined {
+  const headers = (response as { headers?: unknown }).headers;
+  if (!headers || typeof (headers as { get?: unknown }).get !== "function") {
+    return undefined;
+  }
+  try {
+    return (headers as Headers).get(name) ?? undefined;
+  } catch {
+    return undefined;
+  }
 }

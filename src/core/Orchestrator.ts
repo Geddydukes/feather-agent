@@ -263,12 +263,15 @@ export class Feather {
         let pending = specs.length;
         let settled = false;
 
-        const abortLosers = (reason?: unknown) => {
-          for (const controller of controllers) {
+        const abortLosers = (winnerIndex: number | null, reason?: unknown) => {
+          controllers.forEach((controller, index) => {
+            if (index === winnerIndex) {
+              return;
+            }
             if (!controller.signal.aborted) {
               controller.abort(reason);
             }
-          }
+          });
         };
 
         const runCleanups = () => {
@@ -282,7 +285,7 @@ export class Feather {
           const rejectOnce = (error: unknown) => {
             if (settled) return;
             settled = true;
-            abortLosers(error);
+            abortLosers(null, error);
             runCleanups();
             reject(error);
           };
@@ -311,7 +314,7 @@ export class Feather {
                   return;
                 }
                 settled = true;
-                abortLosers();
+                abortLosers(index);
                 runCleanups();
                 resolve(response);
               })
@@ -323,7 +326,7 @@ export class Feather {
                 pending -= 1;
                 if (pending === 0) {
                   settled = true;
-                  abortLosers();
+                  abortLosers(null);
                   runCleanups();
                   const filtered = errors.filter((err) => err !== undefined);
                   if (filtered.length === 1) {

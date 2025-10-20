@@ -46,19 +46,37 @@ export async function withRetry<T>(
 
 function delay(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise<void>((resolve, reject) => {
-    const timeoutId = setTimeout(resolve, ms);
+    let settled = false;
+    const timeoutId = setTimeout(() => {
+      settled = true;
+      cleanup();
+      resolve();
+    }, ms);
+
+    const cleanup = () => {
+      clearTimeout(timeoutId);
+      if (signal && abortListener) {
+        signal.removeEventListener("abort", abortListener);
+      }
+    };
+
+    const abortListener = signal
+      ? () => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          cleanup();
+          reject(createAbortError(signal.reason));
+        }
+      : undefined;
 
     if (signal) {
-      const onAbort = () => {
-        clearTimeout(timeoutId);
-        reject(createAbortError(signal.reason));
-      };
-
       if (signal.aborted) {
-        onAbort();
-      } else {
-        signal.addEventListener("abort", onAbort, { once: true });
+        abortListener?.();
+        return;
       }
+      signal.addEventListener("abort", abortListener!, { once: true });
     }
   });
 }
