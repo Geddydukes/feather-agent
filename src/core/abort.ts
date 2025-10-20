@@ -3,15 +3,15 @@
  * when provided by upstream signals.
  */
 export function createAbortError(reason?: unknown): Error {
+  if (reason instanceof DOMException && reason.name === "AbortError") return reason;
   if (reason instanceof Error) {
-    reason.name = "AbortError";
-    return reason;
+    // Don't mutate name; wrap instead
+    const err = new DOMException(reason.message || "Aborted", "AbortError");
+    (err as any).cause = reason;
+    return err;
   }
-  const error = new Error("Aborted");
-  error.name = "AbortError";
-  return error;
+  return new DOMException("Aborted", "AbortError");
 }
-
 /**
  * Forwards abort events from the source signal to the target controller. A
  * cleanup function is returned so callers can remove the listener once the

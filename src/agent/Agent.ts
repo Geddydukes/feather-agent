@@ -18,27 +18,26 @@ import {
   type AgentErrorCode,
 import type { MemoryGetContextOptions } from "../memory/types.js";
 import type { Tool } from "../tools/types.js";
-import {
-  AgentError,
-  type AgentActionTrace,
-  type AgentAssistantMessage,
-  type AgentConfig,
-  type AgentEvent,
-  type AgentMemoryTurn,
-  type AgentMessage,
-  type AgentPlan,
-  type AgentPlanAction,
-  type AgentRunFailure,
-  type AgentRunOptions,
-  type AgentRunResult,
-  type AgentRunSuccess,
-  type AgentStepTrace,
-  type AgentToolCollection,
-  type AgentShouldStopDecision,
-  type AgentShouldStopEvaluator,
-  type TokenUsage,
-  type AgentUserMessage,
-  type AgentContextOptions
+import type {
+  AgentErrorCode,
+  AgentActionTrace,
+  AgentAssistantMessage,
+  AgentConfig,
+  AgentEvent,
+  AgentMemoryTurn,
+  AgentMessage,
+  AgentPlan,
+  AgentPlanAction,
+  AgentRunFailure,
+  AgentRunOptions,
+  AgentRunResult,
+  AgentRunSuccess,
+  AgentStepTrace,
+  AgentToolCollection,
+  AgentShouldStopDecision,
+  TokenUsage,
+  AgentUserMessage,
+  AgentContextOptions,
 } from "./types.js";
 import { isFinalPlan, normalizePlan } from "./plan.js";
 import { withMemoryEventing } from "../telemetry/events.js";
