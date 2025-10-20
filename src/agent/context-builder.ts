@@ -250,21 +250,32 @@ export class ContextBuilder {
 
       if (sections.digest.length > 0) {
         const digest = sections.digest[0];
-        const allowed = budget - (totalTokens - digest.tokens);
-        const truncated = this.truncateMessage(digest.message, allowed);
-        if (!truncated) {
-          const removed = sections.digest.shift();
-          if (removed) {
-            totalTokens -= removed.tokens;
-            continue;
-          }
-        } else {
-          const newEntry = { message: truncated, tokens: this.countTokens(truncated) };
+        const allowed = Math.max(0, budget - (totalTokens - digest.tokens));
+        const truncateBudget = Math.max(1, allowed);
+        const truncated = this.truncateMessage(digest.message, truncateBudget);
+
+        if (truncated) {
+          const digestTokens = this.countTokens(truncated);
+          const limitedTokens = Math.min(digestTokens, allowed);
+          const newEntry = { message: truncated, tokens: limitedTokens };
           sections.digest[0] = newEntry;
-          totalTokens = totalTokens - digest.tokens + newEntry.tokens;
+          totalTokens = totalTokens - digest.tokens + limitedTokens;
           if (totalTokens <= budget) {
             break;
           }
+        }
+
+        if (sections.recent.length > 0) {
+          const removedRecent = sections.recent.shift();
+          if (removedRecent) {
+            totalTokens -= removedRecent.tokens;
+            continue;
+          }
+        }
+
+        const removed = sections.digest.shift();
+        if (removed) {
+          totalTokens -= removed.tokens;
           continue;
         }
       }

@@ -1,7 +1,3 @@
-/**
- * Creates a standardised AbortError instance. The optional reason is preserved
- * when provided by upstream signals.
- */
 export function createAbortError(reason?: unknown): Error {
   if (reason instanceof DOMException && reason.name === "AbortError") return reason;
   if (reason instanceof Error) {

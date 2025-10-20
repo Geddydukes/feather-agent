@@ -64,15 +64,6 @@ function fromAgentMessage(message: AgentMessage): Message {
   }
 }
 
-function isAgentMessage(value: unknown): value is AgentMessage {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "role" in value &&
-    typeof (value as { role?: unknown }).role === "string"
-  );
-}
-
 function stringify(value: unknown): string {
   if (typeof value === "string") {
     return value;

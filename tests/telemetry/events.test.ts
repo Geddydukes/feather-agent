@@ -253,10 +253,11 @@ describe("createNdjsonTraceSink", () => {
       elapsedMs: 10,
     });
 
-    expect(lines.length).toBe(2);
+    expect(lines.length).toBe(3);
     const parsedEvents = lines.map((line) => JSON.parse(line));
     expect(parsedEvents[0].type).toBe("agent.run.start");
-    expect(parsedEvents[1].type).toBe("agent.run.summary");
-    expect(parsedEvents[1].metrics.iterationCount).toBe(0);
+    expect(parsedEvents[1].type).toBe("agent.run.complete");
+    expect(parsedEvents[2].type).toBe("agent.run.summary");
+    expect(parsedEvents[2].metrics.iterationCount).toBe(0);
   });
 });
