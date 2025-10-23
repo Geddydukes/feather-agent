@@ -12,11 +12,11 @@
       "types": "./dist/index.d.ts"
     },
     "./cli": {
-      "import": "./dist/bin/feather.js"
+      "import": "./dist/src/bin/feather.js"
     }
   },
   "bin": {
-    "feather": "./dist/bin/feather.js"
+    "feather": "dist/src/bin/feather.js"
   },
   "files": [
     "dist/**/*",
@@ -26,8 +26,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rm -rf dist",
-    "prepublishOnly": "npm run clean && npm run build && npm run test",
+    "prepublishOnly": "npm run clean && npm run build",
     "test": "vitest run",
+    "test:ci": "npm ci && npm run test",
     "test:watch": "vitest",
     "examples:chat": "node dist/examples/chat.js",
     "examples:real-world": "node dist/examples/real-world-app.js",
@@ -57,7 +58,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Geddydukes/feather-agent.git"
+    "url": "git+https://github.com/Geddydukes/feather-agent.git"
   },
   "bugs": {
     "url": "https://github.com/Geddydukes/feather-agent/issues"
@@ -70,5 +71,8 @@
     "@types/node": "^24.7.2",
     "typescript": "^5.6.3",
     "vitest": "^2.1.1"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "^4.0.0"
   }
 }
