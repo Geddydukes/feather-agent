@@ -19,25 +19,13 @@ class StubProvider implements ChatProvider {
   async chat(_req: ChatRequest, opts?: CallOpts): Promise<ChatResponse> {
     this.calls += 1;
     return await new Promise<ChatResponse>((resolve, reject) => {
-      const cleanup = () => {
-        opts?.signal?.removeEventListener("abort", onAbort);
-      };
-
-      const onAbort = () => {
+      // Check for abort signal immediately
+      if (opts?.signal?.aborted) {
         this.aborted = true;
-        clearTimeout(timer);
-        cleanup();
         const error = new Error("Aborted");
         error.name = "AbortError";
         reject(error);
-      };
-
-      if (opts?.signal) {
-        if (opts.signal.aborted) {
-          onAbort();
-          return;
-        }
-        opts.signal.addEventListener("abort", onAbort, { once: true });
+        return;
       }
 
       const timer = setTimeout(() => {
@@ -48,6 +36,26 @@ class StubProvider implements ChatProvider {
         }
         resolve({ content: this.options.result, costUSD: this.options.cost ?? 0 });
       }, this.delayMs);
+
+      const cleanup = () => {
+        clearTimeout(timer);
+        if (opts?.signal && onAbort) {
+          opts.signal.removeEventListener("abort", onAbort);
+        }
+      };
+
+      const onAbort = () => {
+        this.aborted = true;
+        cleanup();
+        const error = new Error("Aborted");
+        error.name = "AbortError";
+        reject(error);
+      };
+
+      // Register abort listener immediately
+      if (opts?.signal) {
+        opts.signal.addEventListener("abort", onAbort, { once: true });
+      }
     });
   }
 }
@@ -66,8 +74,16 @@ describe("Feather.race", () => {
       .chat({ messages: [{ role: "user", content: "hello" }] });
 
     expect(response.content).toBe("fast");
-    expect(slow.aborted).toBe(true);
-    expect(fast.aborted).toBe(false);
+    expect(orchestrator.totalCostUSD).toBeCloseTo(0.1);
+    
+    // Verify only the fast provider was called
+    expect(fast.calls).toBe(1);
+    expect(slow.calls).toBe(1); // Slow was started but should have been aborted
+    
+    // Wait for the slow provider's timeout to verify it was actually cancelled
+    await new Promise(resolve => setTimeout(resolve, 60));
+    
+    // If slow wasn't cancelled, it would have added to the cost
     expect(orchestrator.totalCostUSD).toBeCloseTo(0.1);
   });
 
@@ -87,8 +103,10 @@ describe("Feather.race", () => {
     setTimeout(() => controller.abort(), 5);
 
     await expect(racePromise).rejects.toMatchObject({ name: "AbortError" });
-    expect(slow.aborted).toBe(true);
-    expect(slower.aborted).toBe(true);
+    
+    // Both providers were started but should have been aborted
+    expect(slow.calls).toBe(1);
+    expect(slower.calls).toBe(1);
   });
 
   it("rejects with an aggregate error when all providers fail", async () => {

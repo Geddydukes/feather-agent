@@ -100,7 +100,8 @@ describe("createJsonPlanner", () => {
       signal: undefined,
     });
 
-    const [{ messages }] = callModel.mock.calls.slice(-1);
+    const lastCall = callModel.mock.calls[callModel.mock.calls.length - 1];
+    const messages = lastCall[0].messages;
     const toolMessages = messages.filter((msg: Message) => msg.role === "tool");
     expect(toolMessages).toHaveLength(1);
     expect(toolMessages[0].content).toContain("lookup");

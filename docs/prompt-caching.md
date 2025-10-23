@@ -9,7 +9,7 @@ The prompt cache middleware wraps planner calls. It hashes the planner input wit
 To enable caching:
 
 ```typescript
-import { PromptCache, createPromptCacheMiddleware } from "feather-orchestrator";
+import { PromptCache, createPromptCacheMiddleware } from "feather-agent";
 
 const cache = new PromptCache({ ttlSeconds: 600 });
 const middleware = createPromptCacheMiddleware({ cache });
@@ -28,7 +28,7 @@ whitespace-only changes do not create distinct cache entries.【F:src/core/promp
 `ToolCache` offers deterministic hashing, TTL-aware storage, and safe cloning of cached results. Wrap expensive tools with `withToolCache` to hydrate results directly from cache during the agent loop. Cache events propagate through agent telemetry so observability dashboards display hit ratios per tool.【F:src/core/tool-cache.ts†L1-L216】【F:src/tools/cache.ts†L1-L87】
 
 ```typescript
-import { ToolCache, withToolCache } from "feather-orchestrator";
+import { ToolCache, withToolCache } from "feather-agent";
 
 const toolCache = new ToolCache({ ttlSeconds: 300 });
 const cachedSearch = withToolCache(webSearchTool, { cache: toolCache });

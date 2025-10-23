@@ -120,86 +120,89 @@ export class Feather {
       throw createAbortError(signal.reason);
     }
 
-    try {
-      const requestId = crypto.randomUUID();
-      this.onEvent?.({ type: "call.start", provider: p.id, model: modelName, requestId });
+    const requestId = crypto.randomUUID();
+    this.onEvent?.({ type: "call.start", provider: p.id, model: modelName, requestId });
 
-      await this.limiter.take(`${p.inst.id}:${modelName}`, { signal });
+    await this.limiter.take(`${p.inst.id}:${modelName}`, { signal });
 
-      const req: ChatRequest = { 
-        model: modelName, 
-        messages: args.messages, 
-        temperature: args.temperature, 
-        maxTokens: args.maxTokens, 
-        topP: args.topP 
-      };
-      
-      const ctx: any = { 
-        provider: p.id, 
-        model: modelName, 
-        request: req, 
-        startTs: Date.now(),
-        requestId 
-      };
+    const req: ChatRequest = { 
+      model: modelName, 
+      messages: args.messages, 
+      temperature: args.temperature, 
+      maxTokens: args.maxTokens, 
+      topP: args.topP 
+    };
+    
+    const ctx: any = { 
+      provider: p.id, 
+      model: modelName, 
+      request: req, 
+      startTs: Date.now(),
+      requestId 
+    };
 
-      const terminal = async () => {
-        try {
-          const res = await withRetry(
-            () => p.inst.chat(req, {
-              ...call,
-              retry: call?.retry ?? this.retry,
-              signal,
-              timeoutMs
-            }),
-            {
-              ...this.retry,
-              signal,
-              onRetry: (info: { attempt: number; waitMs: number; error: unknown }) => this.onEvent?.({ 
-                type: "call.retry", 
-                attempt: info.attempt, 
-                waitMs: info.waitMs, 
-                error: info.error,
-                requestId 
-              })
-            }
-          );
-          
-          p.breaker.success();
-          this.totalCostUSD += res.costUSD ?? 0;
-          ctx.response = res;
-          ctx.endTs = Date.now();
-          
-          this.onEvent?.({ 
-            type: "call.success", 
-            provider: p.id, 
-            model: modelName, 
-            costUSD: res.costUSD,
-            requestId 
-          });
-          
-          return res;
-        } catch (e) {
-          p.breaker.fail(e);
-          ctx.error = e;
-          ctx.endTs = Date.now();
-          
-          this.onEvent?.({ 
-            type: "call.error", 
-            provider: p.id, 
-            model: modelName, 
-            error: e,
-            requestId 
-          });
-          
-          throw e;
+    const terminal = async () => {
+      try {
+        const res = await withRetry(
+          () => p.inst.chat(req, {
+            ...call,
+            retry: call?.retry ?? this.retry,
+            signal,
+            timeoutMs
+          }),
+          {
+            ...this.retry,
+            signal,
+            onRetry: (info: { attempt: number; waitMs: number; error: unknown }) => this.onEvent?.({ 
+              type: "call.retry", 
+              attempt: info.attempt, 
+              waitMs: info.waitMs, 
+              error: info.error,
+              requestId 
+            })
+          }
+        );
+        
+        // Check if we were aborted during the operation
+        if (signal.aborted) {
+          throw createAbortError(signal.reason);
         }
-      };
+        
+        p.breaker.success();
+        this.totalCostUSD += res.costUSD ?? 0;
+        ctx.response = res;
+        ctx.endTs = Date.now();
+        
+        this.onEvent?.({ 
+          type: "call.success", 
+          provider: p.id, 
+          model: modelName, 
+          costUSD: res.costUSD,
+          requestId 
+        });
+        
+        return res;
+      } catch (e) {
+        p.breaker.fail(e);
+        ctx.error = e;
+        ctx.endTs = Date.now();
+        
+        this.onEvent?.({ 
+          type: "call.error", 
+          provider: p.id, 
+          model: modelName, 
+          error: e,
+          requestId 
+        });
+        
+        throw e;
+      } finally {
+        clearTimeout(timeoutId);
+        unlink();
+      }
+    };
 
-      return runMiddleware(this.middleware, 0, ctx, terminal) as unknown as Promise<ChatResponse>;
-    } finally {
-      clearTimeout(timeoutId);
-      unlink();
-    }
+    return runMiddleware(this.middleware, 0, ctx, terminal) as unknown as Promise<ChatResponse>;
   }
 
   stream = {
@@ -252,35 +255,36 @@ export class Feather {
         if (!specs.length) {
           throw new Error("Feather.race requires at least one provider specification");
         }
-
+  
         if (req.signal?.aborted) {
           throw createAbortError(req.signal.reason);
         }
-
+  
         const controllers = specs.map(() => new AbortController());
         const cleanups: Array<() => void> = [];
         const errors: unknown[] = new Array(specs.length);
         let pending = specs.length;
         let settled = false;
-
+  
         const abortLosers = (winnerIndex: number | null, reason?: unknown) => {
+          const r =
+            reason instanceof DOMException && reason.name === "AbortError"
+              ? reason
+              : createAbortError();
           controllers.forEach((controller, index) => {
-            if (index === winnerIndex) {
-              return;
-            }
-            if (!controller.signal.aborted) {
-              controller.abort(reason);
-            }
+            if (winnerIndex !== null && index === winnerIndex) return;
+            if (!controller.signal.aborted) controller.abort(r);
           });
         };
-
+  
         const runCleanups = () => {
           while (cleanups.length) {
-            const cleanup = cleanups.pop();
-            cleanup?.();
+            try {
+              cleanups.pop()?.();
+            } catch {}
           }
         };
-
+  
         return await new Promise<ChatResponse>((resolve, reject) => {
           const rejectOnce = (error: unknown) => {
             if (settled) return;
@@ -289,11 +293,12 @@ export class Feather {
             runCleanups();
             reject(error);
           };
-
+  
           const handleAbort = () => {
+            abortLosers(null, req.signal?.reason);
             rejectOnce(createAbortError(req.signal?.reason));
           };
-
+  
           if (req.signal) {
             if (req.signal.aborted) {
               handleAbort();
@@ -302,46 +307,43 @@ export class Feather {
             req.signal.addEventListener("abort", handleAbort, { once: true });
             cleanups.push(() => req.signal?.removeEventListener("abort", handleAbort));
           }
-
+  
           specs.forEach((spec, index) => {
             const controller = controllers[index];
             cleanups.push(forwardAbortSignal(req.signal, controller));
-
+  
             Promise.resolve()
               .then(() => self.chat({ ...req, ...spec, signal: controller.signal }))
               .then((response) => {
-                if (settled) {
-                  return;
-                }
+                if (settled) return;
                 settled = true;
+                // Call abortLosers immediately and synchronously
                 abortLosers(index);
                 runCleanups();
                 resolve(response);
               })
               .catch((error) => {
-                if (settled) {
-                  return;
-                }
+                if (settled) return;
                 errors[index] = error;
                 pending -= 1;
                 if (pending === 0) {
                   settled = true;
                   abortLosers(null);
                   runCleanups();
-                  const filtered = errors.filter((err) => err !== undefined);
-                  if (filtered.length === 1) {
-                    reject(filtered[0]);
-                  } else {
-                    reject(new AggregateError(filtered, "All providers failed"));
-                  }
+                  const filtered = errors.filter((e) => e !== undefined);
+                  reject(
+                    filtered.length === 1
+                      ? filtered[0]
+                      : new AggregateError(filtered, "All providers failed")
+                  );
                 }
               });
           });
         });
-      }
+      },
     };
   }
-
+  
   async map<T, R>(items: T[], fn: (t: T) => Promise<R>, opts?: { 
     concurrency?: number; 
     signal?: AbortSignal 

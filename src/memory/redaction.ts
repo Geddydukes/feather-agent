@@ -34,7 +34,7 @@ export class MemoryRedactionSwitch implements MemoryRedactionToggle {
   private readonly enabledSessions = new Set<string>();
   private readonly disabledSessions = new Set<string>();
 
-  constructor(private readonly defaultEnabled: boolean = true) {}
+  constructor(private readonly defaultEnabled: boolean = false) {}
 
   enable(sessionId: string): void {
     this.disabledSessions.delete(sessionId);
@@ -64,7 +64,12 @@ export function withRedaction<TTurn extends MemoryTurn>(
   if (!options || typeof options.redactor !== "function") {
     throw new Error("Redaction requires a redactor function");
   }
-  return new RedactingMemoryManager(base, options);
+  // If no toggle and no defaultEnabled, enable by default
+  const opts = {
+    ...options,
+    defaultEnabled: options.defaultEnabled ?? (options.toggle ? false : true)
+  };
+  return new RedactingMemoryManager(base, opts);
 }
 
 class RedactingMemoryManager<TTurn extends MemoryTurn> implements MemoryManager<TTurn> {
@@ -76,18 +81,17 @@ class RedactingMemoryManager<TTurn extends MemoryTurn> implements MemoryManager<
     private readonly base: MemoryManager<TTurn>,
     private readonly options: MemoryRedactionOptions<TTurn>
   ) {
-    const defaultEnabled = options.defaultEnabled ?? true;
+    const defaultEnabled = options.defaultEnabled ?? false;
     this.toggle = options.toggle ?? new MemoryRedactionSwitch(defaultEnabled);
     this.includeRoles = options.includeRoles ? new Set(options.includeRoles) : undefined;
     this.excludeRoles = options.excludeRoles ? new Set(options.excludeRoles) : undefined;
   }
 
   async append(sessionId: string, turn: TTurn): Promise<void> {
-    const processed = this.applyRedaction(sessionId, turn);
-    if (processed === null) {
-      return;
+    const redacted = this.applyRedaction(sessionId, turn);
+    if (redacted) {
+      await this.base.append(sessionId, redacted);
     }
-    await this.base.append(sessionId, processed);
   }
 
   async getContext(

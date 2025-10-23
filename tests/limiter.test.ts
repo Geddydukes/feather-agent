@@ -84,7 +84,7 @@ describe("RateLimiter", () => {
     // Abort the request
     controller.abort();
     
-    await expect(promise).rejects.toThrow("Aborted");
+    await expect(promise).rejects.toMatchObject({ name: "AbortError" });
   });
 
   it("should handle different keys independently", () => {

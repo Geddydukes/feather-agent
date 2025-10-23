@@ -39,7 +39,7 @@ describe("OpenAI Provider", () => {
         headers: expect.objectContaining({
           "content-type": "application/json",
           "authorization": "Bearer test-key",
-          "user-agent": expect.stringContaining("feather-orchestrator")
+          "user-agent": expect.stringContaining("feather-agent")
         }),
         body: expect.stringContaining('"model":"gpt-4"')
       })
@@ -177,7 +177,7 @@ describe("Anthropic Provider", () => {
           "content-type": "application/json",
           "x-api-key": "test-key",
           "anthropic-version": "2023-06-01",
-          "user-agent": expect.stringContaining("feather-orchestrator")
+          "user-agent": expect.stringContaining("feather-agent")
         }),
         body: expect.stringContaining('"model":"claude-3-5-haiku"')
       })

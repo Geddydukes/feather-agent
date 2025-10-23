@@ -115,7 +115,7 @@ describe("withRetry", () => {
       maxAttempts: 10,
       signal: controller.signal,
       baseMs: 50
-    })).rejects.toThrow("Aborted");
+    })).rejects.toMatchObject({ name: "AbortError" });
   });
 
   it("should handle jitter correctly", async () => {

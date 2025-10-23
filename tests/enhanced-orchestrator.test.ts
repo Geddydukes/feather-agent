@@ -9,20 +9,39 @@ function mockProvider(id: string, behavior: "ok" | "fail" | "slow"): ChatProvide
     async chat(req: ChatRequest, opts?: CallOpts): Promise<ChatResponse> {
       if (behavior === "fail") throw new Error("fail");
       if (behavior === "slow") {
-        // Check for abort signal
-        if (opts?.signal?.aborted) {
-          throw new Error("Aborted");
-        }
-        await new Promise((resolve, reject) => {
-          const timeout = setTimeout(resolve, 1000); // Much longer delay
+        return new Promise((resolve, reject) => {
+          // Check for abort signal immediately
+          if (opts?.signal?.aborted) {
+            const error = new Error("Aborted");
+            error.name = "AbortError";
+            reject(error);
+            return;
+          }
+
+          const timeout = setTimeout(() => {
+            cleanup();
+            resolve({ content: "slow" });
+          }, 1000);
+
+          const cleanup = () => {
+            clearTimeout(timeout);
+            if (opts?.signal && abortListener) {
+              opts.signal.removeEventListener("abort", abortListener);
+            }
+          };
+
+          const abortListener = () => {
+            cleanup();
+            const error = new Error("Aborted");
+            error.name = "AbortError";
+            reject(error);
+          };
+
+          // Register abort listener immediately
           if (opts?.signal) {
-            opts.signal.addEventListener("abort", () => {
-              clearTimeout(timeout);
-              reject(new Error("Aborted"));
-            });
+            opts.signal.addEventListener("abort", abortListener, { once: true });
           }
         });
-        return { content: "slow" };
       }
       return { content: "ok", costUSD: 0.01 };
     }
@@ -146,7 +165,7 @@ describe("Enhanced Feather Orchestrator", () => {
         model: "test",
         messages: [{ role: "user", content: "hi" }],
         signal: controller.signal
-      })).rejects.toThrow("Aborted");
+      })).rejects.toMatchObject({ name: "AbortError" });
     });
 
     it.skip("should timeout after specified time", async () => {

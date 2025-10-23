@@ -23,6 +23,9 @@ export async function withRetry<T>(
     try {
       return await fn();
     } catch (e: any) {
+      // Don't retry on abort
+      if (e?.name === "AbortError" || opts.signal?.aborted) throw e;
+      
       attempt++;
       if (attempt >= maxAttempts) throw e;
 

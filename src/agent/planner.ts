@@ -95,11 +95,22 @@ export function createJsonPlanner<TTurn extends AgentMemoryTurn = AgentMemoryTur
       historyMessages = [{ role: context.input.role, content: context.input.content }];
     }
 
-    const messages: Message[] = [
+    const historyWithoutTool = historyMessages.filter((m) => m.role !== "tool");
+
+    const baseMessages: Message[] = [
       { role: "system", content: systemPrompt },
       { role: "system", content: toolInstructions },
-      ...historyMessages,
+      ...historyWithoutTool,
     ];
+    
+    // Append tool planner messages if tool turns were present
+    const toolPlannerMessages = buildToolPlannerMessage(historyMessages);
+    
+    const messages: Message[] = [
+      ...baseMessages,
+      ...toolPlannerMessages,
+    ];
+    
 
     const response = await callModel({
       messages,
@@ -160,6 +171,27 @@ function buildToolInstructions(tools: PlannerToolDescription[]): string {
     ...toolLines,
     "If no tool is appropriate, return {\"final\":{...}}.",
   ].join("\n");
+}
+
+function buildToolPlannerMessage(history: Message[]): Message[] {
+  // Find any existing tool messages in the converted history
+  const toolTurns = history.filter((m: any) => m?.role === "tool");
+  if (toolTurns.length === 0) return [];
+
+  // Combine all tool turns into a single summary message
+  const combined = toolTurns.map((t: any) => {
+    const name = (t as any).name ?? "tool";
+    const content =
+      typeof t.content === "string" ? t.content : stringify(t.content);
+    return { name, content };
+  });
+
+  const content = stringify({
+    type: "tool_observations",
+    tools: combined,
+  });
+
+  return [{ role: "tool", content } as Message];
 }
 
 function extractContent(result: string | { content: string }): string {

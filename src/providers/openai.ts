@@ -79,14 +79,13 @@ export function openai(cfg: OpenAIConfig): ChatProvider {
           parseRetryAfter(response)
         );
       }
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let aborted = false;
 
       const onAbort = () => {
-        if (aborted) {
-          return;
-        }
+        if (aborted) return;
         aborted = true;
         if (typeof reader.cancel === "function") {
           Promise.resolve(reader.cancel()).catch(() => {});
@@ -100,10 +99,18 @@ export function openai(cfg: OpenAIConfig): ChatProvider {
         }
         opts.signal.addEventListener("abort", onAbort, { once: true });
       }
+
       try {
         while (true) {
+          // Bail quickly if aborted mid-loop
+          if (opts?.signal?.aborted) {
+            onAbort();
+            throw createAbortError(opts.signal.reason);
+          }
+
           const { value, done } = await reader.read();
           if (done) break;
+
           const chunk = decoder.decode(value, { stream: true });
           for (const line of chunk.split("\n")) {
             const trimmed = line.trim();
@@ -114,23 +121,28 @@ export function openai(cfg: OpenAIConfig): ChatProvider {
               const json = JSON.parse(payload);
               const delta = json.choices?.[0]?.delta?.content;
               if (delta) yield { content: delta };
-            } catch {}
+            } catch {
+              // ignore malformed SSE lines
+            }
           }
         }
+      } catch (err) {
+        if (opts?.signal?.aborted || aborted) {
+          throw createAbortError(opts?.signal?.reason);
+        }
+        throw err;
       } finally {
         if (opts?.signal) {
           opts.signal.removeEventListener("abort", onAbort);
         }
-        if (typeof reader.releaseLock === "function") {
-          reader.releaseLock();
-        }
-        if (aborted) {
-          throw createAbortError(opts?.signal?.reason);
-        }
-      } finally {
-        reader.releaseLock();
+        try {
+          if (typeof reader.releaseLock === "function") {
+            reader.releaseLock();
+          }
+        } catch {}
       }
     },
+
     price: pricing,
   };
 }

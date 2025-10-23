@@ -32,18 +32,18 @@ describe("memory redaction", () => {
     });
 
     await manager.append(SESSION_ID, { role: "user", content: "secret 111" });
-    let [stored] = await base.getContext(SESSION_ID);
-    expect(stored.content).toBe("secret ***");
+    let context = await base.getContext(SESSION_ID);
+    expect(context[0].content).toBe("secret ***");
 
     toggle.disable(SESSION_ID);
     await manager.append(SESSION_ID, { role: "user", content: "secret 222" });
-    [stored] = await base.getContext(SESSION_ID);
-    expect(stored.content).toBe("secret 222");
+    context = await base.getContext(SESSION_ID);
+    expect(context[1].content).toBe("secret 222");
 
     toggle.enable(SESSION_ID);
     await manager.append(SESSION_ID, { role: "user", content: "secret 333" });
-    [stored] = await base.getContext(SESSION_ID);
-    expect(stored.content).toBe("secret ***");
+    context = await base.getContext(SESSION_ID);
+    expect(context[2].content).toBe("secret ***");
   });
 
   it("respects include and exclude role filters", async () => {

@@ -141,18 +141,20 @@ export function anthropic(cfg: AnthropicConfig): ChatProvider {
             } catch {}
           }
         }
+      } catch (err) {
+        if (opts?.signal?.aborted || aborted) {
+          throw createAbortError(opts?.signal?.reason);
+        }
+        throw err;
       } finally {
         if (opts?.signal) {
           opts.signal.removeEventListener("abort", onAbort);
         }
-        if (typeof reader.releaseLock === "function") {
-          reader.releaseLock();
-        }
-        if (aborted) {
-          throw createAbortError(opts?.signal?.reason);
-        }
-      } finally {
-        reader.releaseLock();
+        try {
+          if (typeof reader.releaseLock === "function") {
+            reader.releaseLock();
+          }
+        } catch {}
       }
     },
     price: pricing,

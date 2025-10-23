@@ -1,7 +1,7 @@
 {
-  "name": "feather-orchestrator",
+  "name": "feather-agent",
   "version": "0.1.0",
-  "description": "Tiny, fast, provider-agnostic LLM API orchestrator (fallback, race, rate limits, retries, streaming, cost, middleware).",
+  "description": "Tiny, fast, provider-agnostic LLM agent framework (orchestrator, fallback, race, rate limits, retries, streaming, cost, middleware).",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -40,6 +40,7 @@
   },
   "keywords": [
     "llm",
+    "agent",
     "orchestrator",
     "openai",
     "anthropic",
@@ -56,12 +57,12 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/feather-orchestrator.git"
+    "url": "https://github.com/Geddydukes/feather-agent.git"
   },
   "bugs": {
-    "url": "https://github.com/your-username/feather-orchestrator/issues"
+    "url": "https://github.com/Geddydukes/feather-agent/issues"
   },
-  "homepage": "https://github.com/your-username/feather-orchestrator#readme",
+  "homepage": "https://github.com/Geddydukes/feather-agent#readme",
   "dependencies": {
     "zod": "^3.22.0"
   },

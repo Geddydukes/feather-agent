@@ -265,17 +265,9 @@ export class ContextBuilder {
           }
         }
 
-        if (sections.recent.length > 0) {
-          const removedRecent = sections.recent.shift();
-          if (removedRecent) {
-            totalTokens -= removedRecent.tokens;
-            continue;
-          }
-        }
-
-        const removed = sections.digest.shift();
-        if (removed) {
-          totalTokens -= removed.tokens;
+        const removedDigest = sections.digest.shift();
+        if (removedDigest) {
+          totalTokens -= removedDigest.tokens;
           continue;
         }
       }
