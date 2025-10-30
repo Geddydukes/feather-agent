@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "providers": {},
+  "tools": {
+    "calculator": { "builtin": "calc" }
+  },
+  "agents": {
+    "override-agent": {
+      "planner": { "module": "../modules/capture-planner.js" },
+      "memory": { "builtin": "inmemory" },
+      "tools": ["calculator"]
+    }
+  },
+  "defaults": { "agent": "override-agent" }
+}

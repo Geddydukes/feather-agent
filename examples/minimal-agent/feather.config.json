@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "providers": {
+    "entries": {
+      "openai": {
+        "builtin": "openai",
+        "apiKeyEnv": "OPENAI_API_KEY",
+        "models": [
+          { "name": "gpt-4.1-mini", "aliases": ["fast"] }
+        ]
+      }
+    }
+  },
+  "agents": {
+    "default": {
+      "planner": { "kind": "json", "model": "fast" },
+      "tools": [],
+      "memory": { "builtin": "inmemory" }
+    }
+  },
+  "defaults": { "agent": "default" }
+}

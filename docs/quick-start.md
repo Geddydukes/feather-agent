@@ -195,59 +195,61 @@ await agent.run({
 
 ### Configuration File
 
-Create `feather.config.json` for declarative setup:
+Create `feather.config.json` for declarative setup using the new project schema:
 
 ```json
 {
-  "policy": "cheapest",
+  "version": 1,
   "providers": {
-    "openai": {
-      "apiKeyEnv": "OPENAI_API_KEY",
-      "models": [
-        {
-          "name": "gpt-4",
-          "aliases": ["smart", "expensive"],
-          "inputPer1K": 0.03,
-          "outputPer1K": 0.06
-        },
-        {
-          "name": "gpt-3.5-turbo",
-          "aliases": ["fast", "cheap"],
-          "inputPer1K": 0.001,
-          "outputPer1K": 0.002
-        }
-      ]
-    },
-    "anthropic": {
-      "apiKeyEnv": "ANTHROPIC_API_KEY",
-      "models": [
-        {
-          "name": "claude-3-5-haiku",
-          "aliases": ["fast", "balanced"],
-          "inputPer1K": 0.008,
-          "outputPer1K": 0.024
-        }
-      ]
+    "policy": "cheapest",
+    "entries": {
+      "openai": {
+        "builtin": "openai",
+        "apiKeyEnv": "OPENAI_API_KEY",
+        "models": [
+          { "name": "gpt-4", "aliases": ["smart"], "inputPer1K": 0.03, "outputPer1K": 0.06 },
+          { "name": "gpt-3.5-turbo", "aliases": ["fast"], "inputPer1K": 0.001, "outputPer1K": 0.002 }
+        ]
+      },
+      "anthropic": {
+        "builtin": "anthropic",
+        "apiKeyEnv": "ANTHROPIC_API_KEY",
+        "models": [
+          { "name": "claude-3-5-haiku", "aliases": ["balanced"], "inputPer1K": 0.008, "outputPer1K": 0.024 }
+        ]
+      }
     }
-  }
+  },
+  "tools": {
+    "calculator": { "builtin": "calc" }
+  },
+  "agents": {
+    "default": {
+      "planner": { "kind": "json", "model": "fast", "temperature": 0.1 },
+      "memory": { "builtin": "inmemory", "options": { "maxTurns": 50 } },
+      "tools": ["calculator"],
+      "context": { "maxTokens": 2000, "maxRecentTurns": 8 }
+    }
+  },
+  "defaults": { "agent": "default" }
 }
 ```
 
-Use semantic model names:
+### Bootstrapping from config
+
+With the config in place you can spin up an agent in five lines:
 
 ```typescript
-import { buildRegistry } from "feather-agent";
-import config from "./feather.config.json" assert { type: "json" };
+import { createAgent } from "feather-agent";
 
-const registry = buildRegistry(config);
-const feather = new Feather({ registry });
-
-// Use semantic aliases - orchestrator picks best option
-const response = await feather.chat({
-  model: "fast",  // Will pick cheapest "fast" model
-  messages: [{ role: "user", content: "Hello!" }]
+const { agent } = await createAgent();
+const result = await agent.run({
+  sessionId: "demo",
+  input: { role: "user", content: "Draft a follow-up email." }
 });
 ```
+
+Refer to [docs/configuration.md](configuration.md) for the full schema and extension points.
 
 ### Middleware
 

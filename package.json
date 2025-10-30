@@ -34,7 +34,8 @@
     "examples:real-world": "node dist/examples/real-world-app.js",
     "examples:agent-chaining": "node dist/examples/agent-chaining.js",
     "lint": "tsc --noEmit",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "dashboard": "npm run build && node dist/src/dashboard/server.js"
   },
   "engines": {
     "node": ">=18.0.0"

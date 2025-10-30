@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Feather Agent Dashboard</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="page-header">
+      <h1>Feather Agent Dashboard</h1>
+      <p class="tagline">Configure providers, tools, and agents without writing boilerplate.</p>
+    </header>
+
+    <main class="layout">
+      <section class="card" id="provider-card">
+        <h2>Provider API Keys</h2>
+        <p class="card-help">Secrets never leave your browser. They are stored in local storage and sent to the server only when you run an agent.</p>
+        <div id="providers"></div>
+        <details class="card-details">
+          <summary>Add provider</summary>
+          <form id="provider-form" class="stack">
+            <label>
+              Provider name
+              <input type="text" name="name" required placeholder="openai" />
+            </label>
+            <label>
+              Reference type
+              <select name="refType">
+                <option value="builtin">Builtin</option>
+                <option value="module">Module</option>
+              </select>
+            </label>
+            <label>
+              Builtin or module path
+              <input type="text" name="reference" required placeholder="openai" />
+            </label>
+            <label>
+              Export name (optional)
+              <input type="text" name="export" placeholder="default" />
+            </label>
+            <label>
+              API key environment variable
+              <input type="text" name="apiKeyEnv" placeholder="OPENAI_API_KEY" />
+            </label>
+            <label>
+              Base URL (optional)
+              <input type="url" name="baseUrl" placeholder="https://api.openai.com/v1" />
+            </label>
+            <button type="submit" class="primary">Add provider</button>
+          </form>
+        </details>
+      </section>
+
+      <section class="card" id="tool-card">
+        <h2>Tool Registry</h2>
+        <p class="card-help">Register shared tools available to every agent, then toggle them per-agent below.</p>
+        <div id="tools"></div>
+        <details class="card-details">
+          <summary>Add tool</summary>
+          <form id="tool-form" class="stack">
+            <label>
+              Tool name
+              <input type="text" name="name" required placeholder="search" />
+            </label>
+            <label>
+              Reference type
+              <select name="refType">
+                <option value="builtin">Builtin</option>
+                <option value="module">Module</option>
+              </select>
+            </label>
+            <label>
+              Builtin or module path
+              <input type="text" name="reference" required placeholder="builtin name or ./tools/search.js" />
+            </label>
+            <label>
+              Export name (optional)
+              <input type="text" name="export" placeholder="default" />
+            </label>
+            <label>
+              Description (optional)
+              <textarea name="description" rows="2" placeholder="Summarise the tool for planners"></textarea>
+            </label>
+            <label>
+              Planner description (optional)
+              <textarea name="plannerDescription" rows="2" placeholder="Visible to planners selecting tools"></textarea>
+            </label>
+            <button type="submit" class="primary">Add tool</button>
+          </form>
+        </details>
+      </section>
+
+      <section class="card" id="agent-card">
+        <h2>Agent Setup</h2>
+        <div class="stack">
+          <label>
+            Choose agent
+            <select id="agent-select"></select>
+          </label>
+          <label>
+            Agent description
+            <input type="text" id="agent-description" placeholder="Short description for dashboards" />
+          </label>
+          <label>
+            Default agent for project
+            <select id="default-agent"></select>
+          </label>
+          <div>
+            <h3>Tools for selected agent</h3>
+            <div id="agent-tools" class="checkbox-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" id="config-card">
+        <h2>Advanced Config Editor</h2>
+        <p class="card-help">Edit the full configuration JSON. Changes are validated automatically.</p>
+        <textarea id="config-editor" rows="16" spellcheck="false"></textarea>
+        <div class="button-row">
+          <button id="apply-config" class="primary">Apply changes</button>
+          <button id="reset-config" type="button">Reset to disk</button>
+        </div>
+        <p id="config-error" class="error"></p>
+      </section>
+
+      <section class="card" id="runner-card">
+        <h2>Run Agent</h2>
+        <label>
+          Prompt
+          <textarea id="run-prompt" rows="6" placeholder="Ask your agent to do something..."></textarea>
+        </label>
+        <div class="button-row">
+          <button id="run-agent" class="primary">Execute</button>
+          <button id="download-config" type="button">Download config</button>
+          <button id="download-script" type="button">Download sample script</button>
+        </div>
+        <pre id="run-output" class="output"></pre>
+      </section>
+    </main>
+
+    <footer class="page-footer">
+      <p>
+        Built with Feather Agent. Read the <a href="https://github.com/Geddydukes/feather-agent" target="_blank" rel="noopener noreferrer">documentation</a>
+        for deeper integration details.
+      </p>
+    </footer>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

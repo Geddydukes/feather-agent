@@ -1,0 +1,231 @@
+:root {
+  color-scheme: light dark;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.5;
+  --bg: #f5f5f7;
+  --bg-alt: #ffffff;
+  --text: #1b1b1f;
+  --text-muted: #555b66;
+  --border: #d0d7de;
+  --primary: #3b82f6;
+  --primary-text: #ffffff;
+  --error: #dc2626;
+  --card-shadow: rgba(15, 23, 42, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f172a;
+    --bg-alt: #111827;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --border: #1f2937;
+    --primary: #60a5fa;
+    --primary-text: #111827;
+    --card-shadow: rgba(15, 23, 42, 0.45);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.page-header,
+.page-footer {
+  padding: 2rem clamp(1rem, 3vw, 3rem);
+  background: var(--bg-alt);
+  border-bottom: 1px solid var(--border);
+}
+
+.page-footer {
+  border-top: 1px solid var(--border);
+  border-bottom: none;
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: clamp(2rem, 3vw, 2.5rem);
+}
+
+.tagline {
+  margin-top: 0.5rem;
+  color: var(--text-muted);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+  padding: 2rem clamp(1rem, 3vw, 3rem);
+}
+
+.card {
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 20px 40px -24px var(--card-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.card h3 {
+  margin: 0.5rem 0;
+}
+
+.card-help {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.card-details {
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  background: rgba(59, 130, 246, 0.04);
+}
+
+.card-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+label {
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.95rem;
+}
+
+input,
+select,
+textarea {
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font: inherit;
+  background: transparent;
+  color: inherit;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid rgba(59, 130, 246, 0.35);
+  outline-offset: 2px;
+}
+
+button {
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 0.65rem 1.25rem;
+  font: inherit;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+button.primary {
+  background: var(--primary);
+  color: var(--primary-text);
+  box-shadow: 0 12px 24px -16px var(--primary);
+}
+
+button:not(.primary) {
+  background: transparent;
+  border-color: var(--border);
+  color: inherit;
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+.checkbox-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.5rem;
+}
+
+.checkbox-list label {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+}
+
+.checkbox-list input {
+  width: auto;
+}
+
+.provider-item,
+.tool-item {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.provider-item h3,
+.tool-item h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+.provider-grid,
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.output {
+  background: rgba(15, 23, 42, 0.85);
+  color: #e5e7eb;
+  padding: 1rem;
+  border-radius: 12px;
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.error {
+  color: var(--error);
+  min-height: 1.2rem;
+}
+
+a {
+  color: inherit;
+  text-decoration: underline;
+}
