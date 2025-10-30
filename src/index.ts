@@ -16,3 +16,4 @@ export * from "./telemetry/otel.js";
 
 export * from "./providers/registry.js";
 export * from "./core/config.js";
+export * from "./core/config-loader.js";

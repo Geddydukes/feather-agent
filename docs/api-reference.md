@@ -91,6 +91,31 @@ class Agent {
 }
 ```
 
+### `createAgent`
+
+```typescript
+interface CreateAgentOptions {
+  config?: string | object;
+  agent?: string;
+  cwd?: string;
+  overrides?: Partial<AgentConfigOverrides>;
+}
+
+interface CreateAgentResult {
+  agent: Agent;
+  orchestrator: Feather;
+  name: string;
+  definition: AgentDefinitionConfig;
+  project: NormalisedProjectConfig;
+}
+
+function createAgent(opts?: string | CreateAgentOptions): Promise<CreateAgentResult>
+```
+
+Loads configuration from disk (default `feather.config.json`) and hydrates a fully configured
+`Agent` plus the underlying `Feather` orchestrator. Use `overrides` to inject runtime dependencies
+such as custom memory managers or planners for testing.
+
 #### `AgentOpts`
 
 ```typescript
@@ -595,7 +620,22 @@ const response = await feather.chat({
 });
 ```
 
-### Agent Usage
+### Config-driven agent usage
+
+```typescript
+import { createAgent } from "feather-agent";
+
+const { agent, orchestrator } = await createAgent({
+  config: new URL("./feather.config.json", import.meta.url).pathname
+});
+
+const result = await agent.run({
+  sessionId: "user-123",
+  input: { role: "user", content: "What is 2 + 2?" }
+});
+```
+
+### Manual agent wiring
 
 ```typescript
 import { Agent, InMemoryMemoryManager, createJsonPlanner, createCalcTool } from "feather-agent";
@@ -604,7 +644,8 @@ const agent = new Agent({
   id: "calculator",
   planner: createJsonPlanner({
     callModel: async ({ messages }) => {
-      const response = await feather.chat({
+      // orchestrator is an instance of Feather configured elsewhere
+      const response = await orchestrator.chat({
         provider: "openai",
         model: "gpt-4",
         messages

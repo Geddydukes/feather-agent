@@ -16,7 +16,6 @@
   },
   "include": [
     "src",
-    "examples",
     "tests"
   ],
   "exclude": [

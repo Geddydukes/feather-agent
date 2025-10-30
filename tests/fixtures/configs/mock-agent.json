@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "providers": {
+    "entries": {
+      "mock": {
+        "module": "../providers/mock-provider.js",
+        "export": "createMockProvider",
+        "options": {
+          "responses": [
+            "{\"actions\":[{\"tool\":\"calc\",\"input\":{\"expression\":\"2+3\"}}]}",
+            "{\"final\":{\"role\":\"assistant\",\"content\":\"5\"}}"
+          ]
+        },
+        "models": [
+          { "name": "mock-model", "aliases": ["fast"] }
+        ]
+      }
+    }
+  },
+  "tools": {
+    "calculator": { "builtin": "calc" }
+  },
+  "agents": {
+    "test-agent": {
+      "planner": { "kind": "json", "model": "fast" },
+      "memory": { "builtin": "inmemory" },
+      "tools": ["calculator"]
+    }
+  },
+  "defaults": { "agent": "test-agent" }
+}

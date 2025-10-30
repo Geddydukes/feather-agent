@@ -197,6 +197,12 @@ await abTest("Solve this math problem: 15 * 23");
 
 ## Intelligent Agents
 
+### Config-driven bootstrap (5 lines)
+
+See [`examples/minimal-agent`](../examples/minimal-agent) for a tiny script that relies solely on
+`createAgent` and a declarative config. This is the quickest way to spin up an agent for demos or
+CLI utilities.
+
 ### Basic Agent
 
 ```typescript

@@ -7,3 +7,4 @@ export * from "./history.js";
 export * from "./policies.js";
 export * from "./quotas.js";
 export * from "./quotas-redis.js";
+export * from "./createAgent.js";

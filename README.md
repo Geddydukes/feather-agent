@@ -112,12 +112,48 @@ const results = await feather.map(
 
 ## 🤖 Intelligent Agents
 
-Feather includes a complete agent framework for building sophisticated AI applications:
+Feather includes a complete agent framework for building sophisticated AI applications. You can
+now bootstrap an agent in **five lines** using `createAgent` and a config file:
+
+```typescript
+import { createAgent } from "feather-agent";
+
+const { agent } = await createAgent();
+const result = await agent.run({
+  sessionId: "demo",
+  input: { role: "user", content: "Plan a three-step study routine." }
+});
+
+console.log(result.status === "completed" ? result.output.content : result.error.message);
+```
+
+The factory reads `feather.config.json`, hydrates providers, memory, planners, and tools, then
+returns both the `agent` and the underlying orchestrator. See [Configuration reference](docs/configuration.md)
+for the schema and extension points. The low-level APIs remain available when you need manual
+control:
+
+## 🖥️ Visual dashboard
+
+Prefer pointing and clicking? Run the bundled dashboard to manage providers, tool registries, and agents without touching JSON:
+
+```bash
+npm run dashboard
+```
+
+The server launches on <http://localhost:5173> and serves a secure, client-side UI that keeps API keys in your browser's local storage. You can:
+
+- Register built-in or custom providers and supply API keys when you run an agent.
+- Add shared tools and toggle them per agent.
+- Edit the configuration JSON with schema validation feedback.
+- Execute prompts directly to verify the agent pipeline.
+- Download the generated `feather.config.json` and a ready-to-run `run-agent.ts` script.
+
+See [docs/dashboard.md](docs/dashboard.md) for architecture details and extension tips.
 
 ```typescript
 import { Agent, InMemoryMemoryManager, createJsonPlanner, createCalcTool } from "feather-agent";
 
-// Create a planner that makes structured decisions
+// (Assumes a Feather orchestrator is already instantiated as shown above.)
 const planner = createJsonPlanner({
   callModel: async ({ messages }) => {
     const response = await feather.chat({
@@ -134,23 +170,12 @@ const planner = createJsonPlanner({
   ]
 });
 
-// Create an agent with memory and tools
 const agent = new Agent({
   id: "math-tutor",
   planner,
   memory: new InMemoryMemoryManager({ maxTurns: 100 }),
   tools: [createCalcTool()]
 });
-
-// Run conversations with automatic planning and tool execution
-const result = await agent.run({
-  sessionId: "student-123",
-  input: { role: "user", content: "What is (15 + 25) * 2?" }
-});
-
-if (result.status === "completed") {
-  console.log(result.output.content);
-}
 ```
 
 ## 📖 Documentation
@@ -164,6 +189,7 @@ if (result.status === "completed") {
 
 ### Advanced Topics
 - **[System Overview](docs/overview.md)** - Architecture and design decisions
+- **[Migration Guide](docs/migration-guide.md)** - Transition from manual wiring to `createAgent`
 - **[Troubleshooting](docs/troubleshooting.md)** - Common issues and solutions
 - **[API Reference](#api-reference)** - Complete TypeScript definitions
 
