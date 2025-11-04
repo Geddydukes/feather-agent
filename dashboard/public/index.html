@@ -8,135 +8,230 @@
   </head>
   <body>
     <header class="page-header">
-      <h1>Feather Agent Dashboard</h1>
-      <p class="tagline">Configure providers, tools, and agents without writing boilerplate.</p>
+      <div class="page-header__meta">
+        <p class="eyebrow">Workspace control centre</p>
+        <h1>Feather Agent Dashboard</h1>
+        <p class="tagline">Follow the guided steps to wire up providers, enable tools, and launch an agent without touching code.</p>
+      </div>
+      <ol class="progress">
+        <li><span>1</span>Connect providers</li>
+        <li><span>2</span>Assemble tools</li>
+        <li><span>3</span>Review agent</li>
+        <li><span>4</span>Run &amp; share</li>
+      </ol>
     </header>
 
-    <main class="layout">
-      <section class="card" id="provider-card">
-        <h2>Provider API Keys</h2>
-        <p class="card-help">Secrets never leave your browser. They are stored in local storage and sent to the server only when you run an agent.</p>
-        <div id="providers"></div>
-        <details class="card-details">
-          <summary>Add provider</summary>
-          <form id="provider-form" class="stack">
-            <label>
-              Provider name
-              <input type="text" name="name" required placeholder="openai" />
-            </label>
-            <label>
-              Reference type
-              <select name="refType">
-                <option value="builtin">Builtin</option>
-                <option value="module">Module</option>
-              </select>
-            </label>
-            <label>
-              Builtin or module path
-              <input type="text" name="reference" required placeholder="openai" />
-            </label>
-            <label>
-              Export name (optional)
-              <input type="text" name="export" placeholder="default" />
-            </label>
-            <label>
-              API key environment variable
-              <input type="text" name="apiKeyEnv" placeholder="OPENAI_API_KEY" />
-            </label>
-            <label>
-              Base URL (optional)
-              <input type="url" name="baseUrl" placeholder="https://api.openai.com/v1" />
-            </label>
-            <button type="submit" class="primary">Add provider</button>
-          </form>
-        </details>
-      </section>
-
-      <section class="card" id="tool-card">
-        <h2>Tool Registry</h2>
-        <p class="card-help">Register shared tools available to every agent, then toggle them per-agent below.</p>
-        <div id="tools"></div>
-        <details class="card-details">
-          <summary>Add tool</summary>
-          <form id="tool-form" class="stack">
-            <label>
-              Tool name
-              <input type="text" name="name" required placeholder="search" />
-            </label>
-            <label>
-              Reference type
-              <select name="refType">
-                <option value="builtin">Builtin</option>
-                <option value="module">Module</option>
-              </select>
-            </label>
-            <label>
-              Builtin or module path
-              <input type="text" name="reference" required placeholder="builtin name or ./tools/search.js" />
-            </label>
-            <label>
-              Export name (optional)
-              <input type="text" name="export" placeholder="default" />
-            </label>
-            <label>
-              Description (optional)
-              <textarea name="description" rows="2" placeholder="Summarise the tool for planners"></textarea>
-            </label>
-            <label>
-              Planner description (optional)
-              <textarea name="plannerDescription" rows="2" placeholder="Visible to planners selecting tools"></textarea>
-            </label>
-            <button type="submit" class="primary">Add tool</button>
-          </form>
-        </details>
-      </section>
-
-      <section class="card" id="agent-card">
-        <h2>Agent Setup</h2>
-        <div class="stack">
-          <label>
-            Choose agent
-            <select id="agent-select"></select>
-          </label>
-          <label>
-            Agent description
-            <input type="text" id="agent-description" placeholder="Short description for dashboards" />
-          </label>
-          <label>
-            Default agent for project
-            <select id="default-agent"></select>
-          </label>
-          <div>
-            <h3>Tools for selected agent</h3>
-            <div id="agent-tools" class="checkbox-list"></div>
+    <main class="page-content">
+      <aside class="sidebar">
+        <section class="card quickstart" aria-labelledby="quickstart-heading">
+          <h2 id="quickstart-heading">Quick start</h2>
+          <p class="card-help">Everything happens locally – configuration changes are previewed here before you download or run them.</p>
+          <ol class="steps">
+            <li>
+              <h3>Bring your API keys</h3>
+              <p>Drop provider credentials below. We store them in the browser until you hit <strong>Execute</strong>.</p>
+            </li>
+            <li>
+              <h3>Toggle the tools you need</h3>
+              <p>Start from the curated presets or craft a custom tool definition with the guided builder.</p>
+            </li>
+            <li>
+              <h3>Pick a default agent</h3>
+              <p>Fine-tune tool access, context window, and planner in plain English.</p>
+            </li>
+          </ol>
+          <div class="note">
+            <strong>Heads up:</strong> Integrations that require OAuth (email, calendar, payments, etc.) are surfaced as <span class="badge badge--pro">Pro</span> upgrades.
           </div>
-        </div>
-      </section>
+        </section>
+        <section class="card" aria-labelledby="resource-heading">
+          <h2 id="resource-heading">Helpful resources</h2>
+          <ul class="resource-list">
+            <li><a href="https://docs.feather.run" target="_blank" rel="noopener noreferrer">Documentation</a></li>
+            <li><a href="https://discord.gg/feather" target="_blank" rel="noopener noreferrer">Join the community</a></li>
+            <li><a href="mailto:support@feather.run">Contact support</a></li>
+          </ul>
+        </section>
+      </aside>
 
-      <section class="card" id="config-card">
-        <h2>Advanced Config Editor</h2>
-        <p class="card-help">Edit the full configuration JSON. Changes are validated automatically.</p>
-        <textarea id="config-editor" rows="16" spellcheck="false"></textarea>
-        <div class="button-row">
-          <button id="apply-config" class="primary">Apply changes</button>
-          <button id="reset-config" type="button">Reset to disk</button>
-        </div>
-        <p id="config-error" class="error"></p>
-      </section>
+      <div class="workspace">
+        <section class="card" id="provider-card">
+          <header class="card-header">
+            <div>
+              <h2>1 · Provider API keys</h2>
+              <p class="card-help">Secrets never leave your browser. They are stored in local storage and sent to the server only when you run an agent.</p>
+            </div>
+            <button type="button" id="provider-help" class="ghost">Provider setup guide</button>
+          </header>
+          <div id="providers"></div>
+          <details class="card-details" open>
+            <summary>Add provider</summary>
+            <form id="provider-form" class="stack">
+              <label>
+                Provider name
+                <input type="text" name="name" required placeholder="openai" />
+              </label>
+              <label>
+                Reference type
+                <select name="refType">
+                  <option value="builtin">Builtin</option>
+                  <option value="module">Module</option>
+                </select>
+              </label>
+              <label>
+                Builtin or module path
+                <input type="text" name="reference" required placeholder="openai" />
+              </label>
+              <div class="field-grid">
+                <label>
+                  Export name (optional)
+                  <input type="text" name="export" placeholder="default" />
+                </label>
+                <label>
+                  Base URL (optional)
+                  <input type="url" name="baseUrl" placeholder="https://api.openai.com/v1" />
+                </label>
+              </div>
+              <label>
+                API key environment variable
+                <input type="text" name="apiKeyEnv" placeholder="OPENAI_API_KEY" />
+              </label>
+              <button type="submit" class="primary">Save provider</button>
+            </form>
+          </details>
+        </section>
 
-      <section class="card" id="runner-card">
-        <h2>Run Agent</h2>
-        <label>
-          Prompt
-          <textarea id="run-prompt" rows="6" placeholder="Ask your agent to do something..."></textarea>
-        </label>
-        <div class="button-row">
-          <button id="run-agent" class="primary">Execute</button>
-          <button id="download-config" type="button">Download config</button>
-          <button id="download-script" type="button">Download sample script</button>
-        </div>
-        <pre id="run-output" class="output"></pre>
-      </section>
+        <section class="card" id="tool-card">
+          <header class="card-header">
+            <div>
+              <h2>2 · Tool registry</h2>
+              <p class="card-help">Every tool conforms to <code>run(input, ctx)</code>. Start from presets or roll your own manifest.</p>
+            </div>
+            <button type="button" id="tool-help" class="ghost">Tool authoring tips</button>
+          </header>
+
+          <div class="tool-library">
+            <div class="tool-library__intro">
+              <h3>Curated tool packs</h3>
+              <p>Pre-configured scaffolds highlight best practices. Core tools are instantly available; OAuth integrations are marked <span class="badge badge--pro">Pro</span>.</p>
+            </div>
+            <div id="tool-library" class="tool-library__grid" aria-live="polite"></div>
+          </div>
+
+          <div class="tool-divider"></div>
+
+          <div class="tool-custom">
+            <div class="tool-custom__header">
+              <h3>Create or upload a tool</h3>
+              <p>Describe your tool in the form or import a JSON manifest you exported earlier.</p>
+            </div>
+            <div class="tool-custom__actions">
+              <button type="button" id="tool-upload-button" class="ghost">Upload tool manifest</button>
+              <input type="file" id="tool-upload" accept="application/json" hidden />
+            </div>
+          </div>
+
+          <div id="tools"></div>
+
+          <details class="card-details">
+            <summary>Manual tool entry</summary>
+            <form id="tool-form" class="stack">
+              <label>
+                Tool name
+                <input type="text" name="name" required placeholder="search" />
+              </label>
+              <label>
+                Reference type
+                <select name="refType">
+                  <option value="builtin">Builtin</option>
+                  <option value="module">Module</option>
+                </select>
+              </label>
+              <label>
+                Builtin or module path
+                <input type="text" name="reference" required placeholder="builtin name or ./tools/search.js" />
+              </label>
+              <div class="field-grid">
+                <label>
+                  Export name (optional)
+                  <input type="text" name="export" placeholder="default" />
+                </label>
+                <label>
+                  Planner description (optional)
+                  <textarea name="plannerDescription" rows="2" placeholder="Visible to planners selecting tools"></textarea>
+                </label>
+              </div>
+              <label>
+                Description (optional)
+                <textarea name="description" rows="3" placeholder="Summarise the tool for planners and routing"></textarea>
+              </label>
+              <button type="submit" class="primary">Add tool</button>
+            </form>
+          </details>
+        </section>
+
+        <section class="card" id="agent-card">
+          <header class="card-header">
+            <div>
+              <h2>3 · Agent setup</h2>
+              <p class="card-help">Select which tools, planner, and defaults apply to each agent profile.</p>
+            </div>
+          </header>
+          <div class="stack">
+            <label>
+              Choose agent
+              <select id="agent-select"></select>
+            </label>
+            <label>
+              Agent description
+              <input type="text" id="agent-description" placeholder="Short description for dashboards" />
+            </label>
+            <label>
+              Default agent for project
+              <select id="default-agent"></select>
+            </label>
+            <div>
+              <h3>Tools for selected agent</h3>
+              <div id="agent-tools" class="checkbox-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" id="config-card">
+          <header class="card-header">
+            <div>
+              <h2>4 · Advanced config editor</h2>
+              <p class="card-help">Review and tweak the generated JSON before committing it to your repository.</p>
+            </div>
+            <button type="button" id="config-pretty" class="ghost">Prettify JSON</button>
+          </header>
+          <textarea id="config-editor" rows="18" spellcheck="false"></textarea>
+          <div class="button-row">
+            <button id="apply-config" class="primary">Apply changes</button>
+            <button id="reset-config" type="button">Reset to disk</button>
+          </div>
+          <p id="config-error" class="error"></p>
+        </section>
+
+        <section class="card" id="runner-card">
+          <header class="card-header">
+            <div>
+              <h2>5 · Run agent</h2>
+              <p class="card-help">Execute a prompt using the currently loaded configuration.</p>
+            </div>
+          </header>
+          <label>
+            Prompt
+            <textarea id="run-prompt" rows="6" placeholder="Ask your agent to do something..."></textarea>
+          </label>
+          <div class="button-row">
+            <button id="run-agent" class="primary">Execute</button>
+            <button id="download-config" type="button">Download config</button>
+            <button id="download-script" type="button">Download sample script</button>
+          </div>
+          <pre id="run-output" class="output" aria-live="polite"></pre>
+        </section>
+      </div>
     </main>
 
     <footer class="page-footer">
