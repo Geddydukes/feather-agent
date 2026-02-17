@@ -12,7 +12,7 @@ backwards compatibility with existing code.
 The legacy manual wiring APIs (`Agent`, `createJsonPlanner`, `ProviderRegistry`, etc.) remain
 available. Migrating is optional but recommended for most applications.
 
-## Step 1: Define `feather.config.json`
+## Step 1: Define `legionaire.config.json`
 
 Create a configuration file at your project root:
 
@@ -31,12 +31,12 @@ Create a configuration file at your project root:
     }
   },
   "tools": {
-    "calculator": { "builtin": "calc" }
+    "calculator": "calc"
   },
   "agents": {
     "default": {
-      "planner": { "kind": "json", "model": "fast" },
-      "memory": { "builtin": "inmemory" },
+      "planner": { "model": "fast" },
+      "memory": "inmemory",
       "tools": ["calculator"]
     }
   },
@@ -51,7 +51,7 @@ See [Configuration reference](configuration.md) for the full schema.
 **Before**
 
 ```typescript
-import { Agent, createJsonPlanner, InMemoryMemoryManager, createCalcTool } from "feather-agent";
+import { Agent, createJsonPlanner, InMemoryMemoryManager, createCalcTool } from "legionaire";
 
 const planner = createJsonPlanner({ /* manual wiring */ });
 const agent = new Agent({
@@ -65,7 +65,7 @@ const agent = new Agent({
 **After**
 
 ```typescript
-import { createAgent } from "feather-agent";
+import { createAgent } from "legionaire";
 
 const { agent } = await createAgent();
 ```
@@ -96,7 +96,7 @@ runtime when providers are instantiated.
 
 ## Compatibility notes
 
-- `createAgent` reads `feather.config.json` by default. Pass `config: "path/to/config.json"` when
+- `createAgent` reads `legionaire.config.json` by default. Pass `config: "path/to/config.json"` when
   you need a different location or multiple projects.
 - Existing exports (`buildRegistry`, `Agent`, `createJsonPlanner`, etc.) remain available for
   advanced scenarios. You can mix the high-level facade with low-level APIs.

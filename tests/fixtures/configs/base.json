@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "providers": {
+    "entries": {
+      "mock": {
+        "module": "../providers/mock-provider.js",
+        "export": "createMockProvider",
+        "options": { "responses": [] },
+        "models": [{ "name": "mock-model", "aliases": ["fast"] }]
+      }
+    }
+  },
+  "tools": {
+    "calculator": "calc"
+  },
+  "defaults": {
+    "agentConfig": {
+      "planner": { "model": "fast" },
+      "memory": "inmemory",
+      "tools": ["calculator"]
+    }
+  },
+  "agents": {
+    "default": { "id": "base-agent" }
+  }
+}

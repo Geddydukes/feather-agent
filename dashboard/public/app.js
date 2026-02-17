@@ -1,5 +1,6 @@
 const state = {
   config: null,
+  toolPresets: [],
   apiKeys: loadStoredKeys(),
   selectedAgent: null,
   editorDirty: false,
@@ -8,6 +9,7 @@ const state = {
 
 const elements = {
   providers: document.getElementById("providers"),
+  envVars: document.getElementById("env-vars"),
   tools: document.getElementById("tools"),
   agentSelect: document.getElementById("agent-select"),
   agentDescription: document.getElementById("agent-description"),
@@ -20,14 +22,18 @@ const elements = {
   runPrompt: document.getElementById("run-prompt"),
   runButton: document.getElementById("run-agent"),
   runOutput: document.getElementById("run-output"),
+  downloadPackage: document.getElementById("download-package"),
   downloadConfig: document.getElementById("download-config"),
   downloadScript: document.getElementById("download-script"),
   providerForm: document.getElementById("provider-form"),
   toolForm: document.getElementById("tool-form"),
+  toolPreset: document.getElementById("tool-preset"),
+  toolPresetNote: document.getElementById("tool-preset-note"),
+  toolFormError: document.getElementById("tool-form-error"),
 };
 
 async function init() {
-  await reloadConfig();
+  await Promise.all([reloadConfig(), loadToolPresets()]);
   elements.configEditor.addEventListener("input", () => {
     state.editorDirty = true;
   });
@@ -54,15 +60,20 @@ async function init() {
     markConfigChanged();
   });
   elements.runButton.addEventListener("click", runAgent);
+  elements.downloadPackage.addEventListener("click", downloadAgentPackage);
   elements.downloadConfig.addEventListener("click", downloadConfigFile);
   elements.downloadScript.addEventListener("click", downloadSampleScript);
   elements.providerForm.addEventListener("submit", handleProviderSubmit);
   elements.toolForm.addEventListener("submit", handleToolSubmit);
+  elements.toolPreset.addEventListener("change", () => {
+    applyToolPreset(elements.toolPreset.value);
+  });
+  renderToolPresetPicker();
 }
 
 function loadStoredKeys() {
   try {
-    const raw = localStorage.getItem("feather:apiKeys");
+    const raw = localStorage.getItem("legionaire:apiKeys") ?? localStorage.getItem("feather:apiKeys");
     if (!raw) return {};
     const parsed = JSON.parse(raw);
     return typeof parsed === "object" && parsed ? parsed : {};
@@ -73,7 +84,7 @@ function loadStoredKeys() {
 }
 
 function persistKeys() {
-  localStorage.setItem("feather:apiKeys", JSON.stringify(state.apiKeys));
+  localStorage.setItem("legionaire:apiKeys", JSON.stringify(state.apiKeys));
 }
 
 async function reloadConfig() {
@@ -92,8 +103,39 @@ async function reloadConfig() {
   renderAll();
 }
 
+async function loadToolPresets() {
+  const response = await fetch("/api/tool-presets");
+  if (!response.ok) {
+    state.toolPresets = [];
+    elements.toolPresetNote.textContent = "Preset catalog unavailable. You can still create custom tools.";
+    return;
+  }
+  const payload = await response.json().catch(() => ({}));
+  state.toolPresets = Array.isArray(payload?.presets) ? payload.presets : [];
+  renderToolPresetPicker();
+}
+
+function renderToolPresetPicker() {
+  if (!elements.toolPreset) {
+    return;
+  }
+  elements.toolPreset.innerHTML = "";
+  const customOption = document.createElement("option");
+  customOption.value = "";
+  customOption.textContent = "Custom";
+  elements.toolPreset.appendChild(customOption);
+
+  state.toolPresets.forEach((preset) => {
+    const option = document.createElement("option");
+    option.value = preset.id;
+    option.textContent = preset.label;
+    elements.toolPreset.appendChild(option);
+  });
+}
+
 function renderAll() {
   renderProviders();
+  renderEnvVars();
   renderTools();
   renderAgentSection();
   renderConfigEditor();
@@ -244,6 +286,85 @@ function renderProviders() {
   });
 }
 
+function renderEnvVars() {
+  const container = elements.envVars;
+  if (!container) return;
+  container.innerHTML = "";
+  if (!state.config) return;
+
+  const providerEnvNames = collectProviderEnvNames(state.config);
+  const additionalEnvNames = collectEnvLikeNames(state.config).filter((name) => !providerEnvNames.has(name));
+
+  if (additionalEnvNames.length === 0) {
+    return;
+  }
+
+  const heading = document.createElement("h3");
+  heading.textContent = "Additional Runtime Env Values";
+  container.appendChild(heading);
+
+  const help = document.createElement("p");
+  help.className = "card-help";
+  help.textContent = "Detected from tool options (for example remote adapter base URLs and API keys).";
+  container.appendChild(help);
+
+  const grid = document.createElement("div");
+  grid.className = "provider-grid";
+
+  additionalEnvNames.forEach((name) => {
+    const inputType = /KEY|TOKEN|SECRET|PASSWORD/.test(name) ? "password" : "text";
+    const value = state.apiKeys[name] || "";
+    const field = createLabeledInput(
+      name,
+      value,
+      inputType,
+      (next) => {
+        if (next) {
+          state.apiKeys[name] = next;
+        } else {
+          delete state.apiKeys[name];
+        }
+        persistKeys();
+      }
+    );
+    field.querySelector("input").placeholder = name;
+    grid.appendChild(field);
+  });
+
+  container.appendChild(grid);
+}
+
+function collectProviderEnvNames(config) {
+  const names = new Set();
+  const entries = config.providers?.entries || {};
+  Object.entries(entries).forEach(([providerName, provider]) => {
+    if (provider.apiKeyEnv) {
+      names.add(provider.apiKeyEnv);
+      return;
+    }
+    names.add(`${providerName.toUpperCase()}_API_KEY`);
+  });
+  return names;
+}
+
+function collectEnvLikeNames(value, output = new Set()) {
+  if (Array.isArray(value)) {
+    value.forEach((entry) => collectEnvLikeNames(entry, output));
+    return Array.from(output).sort();
+  }
+  if (!value || typeof value !== "object") {
+    return Array.from(output).sort();
+  }
+  Object.entries(value).forEach(([key, entry]) => {
+    if (typeof entry === "string" && key.endsWith("Env") && entry.trim()) {
+      output.add(entry.trim());
+      return;
+    }
+    collectEnvLikeNames(entry, output);
+  });
+  return Array.from(output).sort();
+}
+
 function renderTools() {
   const container = elements.tools;
   container.innerHTML = "";
@@ -358,6 +479,46 @@ function renderTools() {
       }
     );
     grid.appendChild(plannerDescriptionLabel);
+
+    const optionsLabel = createLabeledTextArea(
+      "Tool options (JSON)",
+      formatJsonValue(tool.options),
+      (value) => {
+        try {
+          const parsed = parseOptionalJson(value, "Tool options");
+          tool.options = parsed;
+          markConfigChanged();
+        } catch (error) {
+          state.configError = error.message;
+          renderConfigEditor();
+        }
+      }
+    );
+    grid.appendChild(optionsLabel);
+
+    const plannerSchemaLabel = createLabeledTextArea(
+      "Planner input schema (JSON)",
+      formatJsonValue(tool.planner?.inputSchema),
+      (value) => {
+        try {
+          const schema = parseOptionalJson(value, "Planner input schema");
+          if (schema !== undefined) {
+            tool.planner = tool.planner || {};
+            tool.planner.inputSchema = schema;
+          } else if (tool.planner) {
+            delete tool.planner.inputSchema;
+          }
+          if (!tool.planner?.description && !tool.planner?.inputSchema) {
+            delete tool.planner;
+          }
+          markConfigChanged();
+        } catch (error) {
+          state.configError = error.message;
+          renderConfigEditor();
+        }
+      }
+    );
+    grid.appendChild(plannerSchemaLabel);
 
     wrapper.appendChild(grid);
     container.appendChild(wrapper);
@@ -535,24 +696,62 @@ function downloadConfigFile() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = "feather.config.json";
+  link.download = "legionaire.config.json";
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
 
+async function downloadAgentPackage() {
+  if (!state.config) return;
+  elements.downloadPackage.disabled = true;
+  elements.downloadPackage.textContent = "Packaging...";
+  elements.runOutput.textContent = "Building downloadable package...";
+  try {
+    const response = await fetch("/api/export", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        config: state.config,
+        agent: state.selectedAgent,
+      }),
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || "Package export failed");
+    }
+    const blob = await response.blob();
+    const disposition = response.headers.get("content-disposition");
+    const fileName = extractDownloadFilename(disposition) || "legionaire-package.tar.gz";
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    elements.runOutput.textContent = `Package downloaded: ${fileName}`;
+  } catch (error) {
+    elements.runOutput.textContent = `Error: ${error.message}`;
+  } finally {
+    elements.downloadPackage.disabled = false;
+    elements.downloadPackage.textContent = "Download package";
+  }
+}
+
 function downloadSampleScript() {
   const agentName = state.selectedAgent || "my-agent";
-  const script = `import { createAgent } from "feather-agent";
+  const script = `import { createAgent } from "legionaire";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const configPath = path.resolve(__dirname, "feather.config.json");
+const configPath = path.resolve(__dirname, "legionaire.config.json");
 
 async function main() {
-  const prompt = process.argv.slice(2).join(" ") || "Hello from Feather";
+  const prompt = process.argv.slice(2).join(" ") || "Hello from Legionaire";
   const { agent } = await createAgent({ config: configPath, agent: "${agentName}" });
   const result = await agent.run({ sessionId: \`cli-\${Date.now()}\`, input: prompt });
   console.log(JSON.stringify(result, null, 2));
@@ -572,6 +771,21 @@ main().catch((error) => {
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+}
+
+function extractDownloadFilename(contentDisposition) {
+  if (!contentDisposition || typeof contentDisposition !== "string") {
+    return null;
+  }
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match && utf8Match[1]) {
+    return decodeURIComponent(utf8Match[1]);
+  }
+  const basicMatch = contentDisposition.match(/filename="([^"]+)"/i) || contentDisposition.match(/filename=([^;]+)/i);
+  if (basicMatch && basicMatch[1]) {
+    return basicMatch[1].trim();
+  }
+  return null;
 }
 
 function handleProviderSubmit(event) {
@@ -608,38 +822,124 @@ function handleToolSubmit(event) {
   event.preventDefault();
   if (!state.config) return;
   const form = event.target;
-  const data = new FormData(form);
-  const name = (data.get("name") || "").toString().trim();
-  if (!name) return;
-  const refType = data.get("refType") || "builtin";
-  const reference = (data.get("reference") || "").toString().trim();
-  if (!reference) return;
-  const exportName = (data.get("export") || "").toString().trim() || undefined;
-  const description = (data.get("description") || "").toString().trim() || undefined;
-  const plannerDescription = (data.get("plannerDescription") || "").toString().trim() || undefined;
-  state.config.tools = state.config.tools || {};
-  const entry = {
-    export: exportName,
-    description,
-  };
-  if (refType === "module") {
-    entry.module = reference;
-  } else {
-    entry.builtin = reference;
-  }
-  if (plannerDescription) {
-    entry.planner = { description: plannerDescription };
-  }
-  entry.name = name;
-  state.config.tools[name] = entry;
-  Object.values(state.config.agents || {}).forEach((agent) => {
-    if (!Array.isArray(agent.tools)) {
-      agent.tools = [];
+  elements.toolFormError.textContent = "";
+
+  try {
+    const data = new FormData(form);
+    const name = (data.get("name") || "").toString().trim();
+    if (!name) {
+      throw new Error("Tool name is required");
     }
-  });
-  markConfigChanged();
-  form.reset();
-  renderAll();
+    const refType = data.get("refType") || "builtin";
+    const reference = (data.get("reference") || "").toString().trim();
+    if (!reference) {
+      throw new Error("Builtin or module path is required");
+    }
+    const exportName = (data.get("export") || "").toString().trim() || undefined;
+    const description = (data.get("description") || "").toString().trim() || undefined;
+    const plannerDescription = (data.get("plannerDescription") || "").toString().trim() || undefined;
+    const optionsJson = (data.get("optionsJson") || "").toString().trim();
+    const plannerInputSchemaJson = (data.get("plannerInputSchema") || "").toString().trim();
+
+    const options = parseOptionalJson(optionsJson, "Tool options");
+    const plannerInputSchema = parseOptionalJson(plannerInputSchemaJson, "Planner input schema");
+
+    state.config.tools = state.config.tools || {};
+    const entry = {
+      export: exportName,
+      description,
+      options,
+    };
+    if (refType === "module") {
+      entry.module = reference;
+    } else {
+      entry.builtin = reference;
+    }
+    if (plannerDescription || plannerInputSchema !== undefined) {
+      entry.planner = {
+        description: plannerDescription,
+        inputSchema: plannerInputSchema,
+      };
+    }
+    entry.name = name;
+    state.config.tools[name] = entry;
+    Object.values(state.config.agents || {}).forEach((agent) => {
+      if (!Array.isArray(agent.tools)) {
+        agent.tools = [];
+      }
+    });
+    markConfigChanged();
+    form.reset();
+    if (elements.toolPreset) {
+      elements.toolPreset.value = "";
+    }
+    elements.toolPresetNote.textContent = "";
+    renderAll();
+  } catch (error) {
+    elements.toolFormError.textContent = error.message;
+  }
+}
+
+function applyToolPreset(presetId) {
+  elements.toolFormError.textContent = "";
+  if (!presetId) {
+    elements.toolPresetNote.textContent = "";
+    return;
+  }
+  const preset = state.toolPresets.find((entry) => entry.id === presetId);
+  if (!preset) {
+    elements.toolPresetNote.textContent = "Preset not found. Please refresh and try again.";
+    return;
+  }
+  if (!state.config) {
+    elements.toolPresetNote.textContent = "Load a config before applying presets.";
+    return;
+  }
+
+  const form = elements.toolForm;
+  form.elements.namedItem("name").value = toUniqueToolName(preset.recommendedToolName || preset.id);
+  const isModulePreset = typeof preset.definition?.module === "string";
+  form.elements.namedItem("refType").value = isModulePreset ? "module" : "builtin";
+  form.elements.namedItem("reference").value = isModulePreset
+    ? preset.definition.module
+    : preset.definition.builtin || "";
+  form.elements.namedItem("export").value = preset.definition.export || "";
+  form.elements.namedItem("description").value = preset.definition.description || "";
+  form.elements.namedItem("plannerDescription").value = preset.definition.planner?.description || "";
+  form.elements.namedItem("optionsJson").value = formatJsonValue(preset.definition.options);
+  form.elements.namedItem("plannerInputSchema").value = formatJsonValue(preset.definition.planner?.inputSchema);
+  elements.toolPresetNote.textContent = preset.notes || preset.summary || "";
+}
+
+function toUniqueToolName(baseName) {
+  const cleaned = (baseName || "tool").trim() || "tool";
+  const existing = new Set(Object.keys(state.config?.tools || {}));
+  if (!existing.has(cleaned)) {
+    return cleaned;
+  }
+  let suffix = 2;
+  while (existing.has(`${cleaned}_${suffix}`)) {
+    suffix += 1;
+  }
+  return `${cleaned}_${suffix}`;
+}
+
+function parseOptionalJson(value, label) {
+  if (!value) {
+    return undefined;
+  }
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    throw new Error(`${label} must be valid JSON: ${error.message}`);
+  }
+}
+
+function formatJsonValue(value) {
+  if (value === undefined) {
+    return "";
+  }
+  return JSON.stringify(value, null, 2);
 }
 
 function createLabeledInput(labelText, value, type, onChange) {

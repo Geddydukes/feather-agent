@@ -5,6 +5,7 @@ import type { ModuleReferenceConfig } from "../types/config.js";
 
 export interface RegistryContext {
   baseDir: string;
+  env?: (key: string) => string | undefined;
 }
 
 export type ModuleFactory<T, C extends RegistryContext> = (

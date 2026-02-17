@@ -1,6 +1,6 @@
 # Examples Guide
 
-This guide provides comprehensive examples of Feather Orchestrator usage patterns, from basic orchestration to advanced agent workflows.
+This guide provides comprehensive examples of Legionaire usage patterns, from basic orchestration to advanced agent workflows.
 
 ## Table of Contents
 
@@ -18,7 +18,7 @@ This guide provides comprehensive examples of Feather Orchestrator usage pattern
 ### Simple Chat
 
 ```typescript
-import { Feather, openai } from "feather-agent";
+import { Feather, openai } from "legionaire";
 
 const feather = new Feather({
   providers: {
@@ -41,7 +41,7 @@ console.log(`Cost: $${response.costUSD}`);
 ### Streaming Responses
 
 ```typescript
-import { Feather, openai } from "feather-agent";
+import { Feather, openai } from "legionaire";
 
 const feather = new Feather({
   providers: {
@@ -63,7 +63,7 @@ console.log("\n");
 ### Batch Processing
 
 ```typescript
-import { Feather, openai } from "feather-agent";
+import { Feather, openai } from "legionaire";
 
 const feather = new Feather({
   providers: {
@@ -103,7 +103,7 @@ results.forEach(({ prompt, response }) => {
 ### Fallback Chain
 
 ```typescript
-import { Feather, openai, anthropic } from "feather-agent";
+import { Feather, openai, anthropic } from "legionaire";
 
 const feather = new Feather({
   providers: {
@@ -133,7 +133,7 @@ console.log("Provider used:", response.provider);
 ### Race Pattern
 
 ```typescript
-import { Feather, openai, anthropic } from "feather-agent";
+import { Feather, openai, anthropic } from "legionaire";
 
 const feather = new Feather({
   providers: {
@@ -162,7 +162,7 @@ console.log("Winner:", response.provider);
 ### A/B Testing
 
 ```typescript
-import { Feather, openai, anthropic } from "feather-agent";
+import { Feather, openai, anthropic } from "legionaire";
 
 const feather = new Feather({
   providers: {
@@ -211,7 +211,7 @@ import {
   InMemoryMemoryManager, 
   createJsonPlanner, 
   createCalcTool 
-} from "feather-agent";
+} from "legionaire";
 
 const feather = new Feather({
   providers: {
@@ -260,7 +260,7 @@ import {
   InMemoryMemoryManager, 
   createJsonPlanner, 
   createWebSearchTool 
-} from "feather-agent";
+} from "legionaire";
 
 const agent = new Agent({
   id: "research-assistant",
@@ -302,7 +302,7 @@ import {
   createJsonPlanner, 
   createCalcTool,
   createWebSearchTool 
-} from "feather-agent";
+} from "legionaire";
 
 // Research Agent
 const researchAgent = new Agent({
@@ -375,7 +375,7 @@ console.log(article);
 ### Chat Service
 
 ```typescript
-import { Feather, openai, anthropic } from "feather-agent";
+import { Feather, openai, anthropic } from "legionaire";
 
 class ChatService {
   private feather: Feather;
@@ -495,7 +495,7 @@ console.log(`User cost: $${chatService.getUserCost("user-123")}`);
 ### Content Generation Pipeline
 
 ```typescript
-import { Feather, openai, anthropic } from "feather-agent";
+import { Feather, openai, anthropic } from "legionaire";
 
 class ContentPipeline {
   private feather: Feather;
@@ -583,7 +583,7 @@ console.log(`Generated ${articles.length} articles`);
 ### Circuit Breaker Pattern
 
 ```typescript
-import { Feather, openai } from "feather-agent";
+import { Feather, openai } from "legionaire";
 
 class ResilientService {
   private feather: Feather;
@@ -640,7 +640,7 @@ class ResilientService {
 ### Cost-Aware Routing
 
 ```typescript
-import { Feather, openai, anthropic } from "feather-agent";
+import { Feather, openai, anthropic } from "legionaire";
 
 class CostAwareService {
   private feather: Feather;
@@ -717,7 +717,7 @@ class CostAwareService {
 ### Prompt Caching
 
 ```typescript
-import { Feather, openai, PromptCache } from "feather-agent";
+import { Feather, openai, PromptCache } from "legionaire";
 
 class OptimizedService {
   private feather: Feather;
@@ -774,7 +774,7 @@ class OptimizedService {
 ### Tool Caching
 
 ```typescript
-import { ToolCache, createCalcTool } from "feather-agent";
+import { ToolCache, createCalcTool } from "legionaire";
 
 class CachedToolService {
   private toolCache: ToolCache;
@@ -801,7 +801,7 @@ class CachedToolService {
 ### Comprehensive Error Handling
 
 ```typescript
-import { Feather, openai, LLMError, AbortError } from "feather-agent";
+import { Feather, openai, LLMError, AbortError } from "legionaire";
 
 class RobustService {
   private feather: Feather;
@@ -858,7 +858,7 @@ class RobustService {
 ### Graceful Degradation
 
 ```typescript
-import { Feather, openai, anthropic } from "feather-agent";
+import { Feather, openai, anthropic } from "legionaire";
 
 class GracefulService {
   private feather: Feather;
@@ -910,9 +910,9 @@ class GracefulService {
 
 ```typescript
 import { describe, it, expect, vi } from "vitest";
-import { Feather } from "feather-agent";
+import { Feather } from "legionaire";
 
-describe("Feather Orchestrator", () => {
+describe("Legionaire", () => {
   it("should handle fallback correctly", async () => {
     const mockProvider = {
       id: "mock",
@@ -983,7 +983,7 @@ describe("Feather Orchestrator", () => {
 
 ```typescript
 import { describe, it, expect } from "vitest";
-import { Feather, openai } from "feather-agent";
+import { Feather, openai } from "legionaire";
 
 describe("Integration Tests", () => {
   it("should work with real OpenAI API", async () => {
@@ -1034,7 +1034,7 @@ describe("Integration Tests", () => {
 
 ```typescript
 import { describe, it, expect } from "vitest";
-import { Agent, InMemoryMemoryManager, createJsonPlanner, createCalcTool } from "feather-agent";
+import { Agent, InMemoryMemoryManager, createJsonPlanner, createCalcTool } from "legionaire";
 
 describe("Agent Tests", () => {
   it("should use tools correctly", async () => {

@@ -247,6 +247,42 @@ describe("Agent", () => {
     expect(success.output.content).toContain("repeated the same plan");
   });
 
+  it("exposes core runtime tools (tool.list/tool.call) to the action loop", async () => {
+    const memory = new TestMemory();
+    const planner = vi.fn(({ context }: PlannerContext): AgentPlannerResult => {
+      const lastTool = [...context].reverse().find((turn) => turn.role === "tool");
+      if (lastTool) {
+        const content = (lastTool.content as AgentToolMessage).content as { tools?: Array<{ name: string }> };
+        const names = (content.tools ?? []).map((entry) => entry.name).sort();
+        return {
+          final: {
+            role: "assistant",
+            content: names.join(","),
+          },
+        };
+      }
+      return { actions: [{ tool: "tool.list", input: {} }] };
+    });
+
+    const agent = new Agent({
+      planner,
+      memory,
+      tools: [],
+    });
+
+    const result = await agent.run({
+      sessionId: "core-tools",
+      input: { role: "user", content: "list tools" },
+    });
+
+    expect(result.status).toBe("completed");
+    if (result.status !== "completed") {
+      throw new Error("expected completed result");
+    }
+    expect(result.output.content).toContain("tool.call");
+    expect(result.output.content).toContain("tool.list");
+  });
+
   it("respects a shouldStop callback before executing new actions", async () => {
     const memory = new TestMemory();
     const runSpy = vi.fn(async () => "done");

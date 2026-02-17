@@ -60,7 +60,7 @@ export interface CreateJsonPlannerOptions<TTurn extends AgentMemoryTurn = AgentM
 }
 
 export const DEFAULT_PLANNER_SYSTEM_PROMPT = [
-  "You are the planner for a Feather agent.",
+  "You are the planner for a Legionaire agent.",
   "Review the conversation and decide the agent's next step.",
   "Respond with strictly valid JSON and nothing else.",
   'Valid outputs: {"actions":[{"tool":"name","input":{...}}, ...]} or {"final":{"role":"assistant","content":"..."}}.',

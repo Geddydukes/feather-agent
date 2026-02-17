@@ -1,4 +1,5 @@
 import type { Tool, ToolRunContext } from "./types.js";
+import type { JsonSchema } from "./manifest.js";
 
 export interface CalcToolArgs {
   expression: string;
@@ -19,6 +20,21 @@ const DEFAULT_DESCRIPTION = "Evaluate deterministic arithmetic expressions with 
 const DEFAULT_MAX_LENGTH = 512;
 const DEFAULT_MAX_VARIABLES = 32;
 const DEFAULT_PRECISION = 12;
+const CALC_INPUT_SCHEMA: JsonSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["expression"],
+  properties: {
+    expression: { type: "string", minLength: 1, maxLength: DEFAULT_MAX_LENGTH },
+    variables: {
+      type: "object",
+      additionalProperties: { type: "number" },
+    },
+    precision: { type: "integer", minimum: 0, maximum: 15 },
+  },
+};
+
+const CALC_OUTPUT_SCHEMA: JsonSchema = { type: "number" };
 
 const OPERATORS: Record<string, { precedence: number; associativity: "left" | "right"; unary?: boolean }> = {
   "+": { precedence: 1, associativity: "left" },
@@ -55,6 +71,23 @@ export function createCalcTool(options: CalcToolOptions = {}): Tool<CalcToolArgs
   return {
     name,
     description,
+    manifest: {
+      name,
+      description,
+      input_schema: CALC_INPUT_SCHEMA,
+      output_schema: CALC_OUTPUT_SCHEMA,
+      auth_requirements: [],
+      safety_tags: ["deterministic", "math"],
+      capabilities: {
+        network: false,
+        filesystem: false,
+        write: false,
+        side_effects: false,
+      },
+      scopes: {
+        max_bytes: 8_192,
+      },
+    },
     async run(args: CalcToolArgs, _ctx: ToolRunContext): Promise<number> {
       if (!args || typeof args.expression !== "string") {
         throw new Error("calc tool requires an expression string");

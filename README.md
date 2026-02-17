@@ -1,15 +1,15 @@
-# Feather Agent
+# Legionaire
 
-[![npm version](https://badge.fury.io/js/feather-agent.svg)](https://badge.fury.io/js/feather-agent)
+[![npm version](https://badge.fury.io/js/legionaire.svg)](https://badge.fury.io/js/legionaire)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Node.js >= 18](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Ready-blue.svg)](https://www.typescriptlang.org/)
 
 > **Production-ready LLM agent framework** with enterprise-grade reliability, multi-provider support, and intelligent orchestration capabilities.
 
-Feather Agent is like Kubernetes for AI - it provides a unified, production-ready platform for managing multiple LLM providers with automatic failover, intelligent routing, cost optimization, and comprehensive observability.
+Legionaire is like Kubernetes for AI - it provides a unified, production-ready platform for managing multiple LLM providers with automatic failover, intelligent routing, cost optimization, and comprehensive observability.
 
-## ✨ Why Feather?
+## ✨ Why Legionaire?
 
 ### 🎯 **Multi-Provider Strategy**
 - **Avoid vendor lock-in** with unified provider abstraction
@@ -40,11 +40,11 @@ Feather Agent is like Kubernetes for AI - it provides a unified, production-read
 ### Installation
 
 ```bash
-npm install feather-agent
+npm install legionaire
 # or
-pnpm add feather-agent
+pnpm add legionaire
 # or
-yarn add feather-agent
+yarn add legionaire
 ```
 
 > **Requires Node.js >= 18** (uses native `fetch`)
@@ -52,7 +52,7 @@ yarn add feather-agent
 ### Basic Usage
 
 ```typescript
-import { Feather, openai, anthropic } from "feather-agent";
+import { Feather, openai, anthropic } from "legionaire";
 
 // Initialize with multiple providers
 const feather = new Feather({
@@ -112,11 +112,11 @@ const results = await feather.map(
 
 ## 🤖 Intelligent Agents
 
-Feather includes a complete agent framework for building sophisticated AI applications. You can
+Legionaire includes a complete agent framework for building sophisticated AI applications. You can
 now bootstrap an agent in **five lines** using `createAgent` and a config file:
 
 ```typescript
-import { createAgent } from "feather-agent";
+import { createAgent } from "legionaire";
 
 const { agent } = await createAgent();
 const result = await agent.run({
@@ -127,7 +127,7 @@ const result = await agent.run({
 console.log(result.status === "completed" ? result.output.content : result.error.message);
 ```
 
-The factory reads `feather.config.json`, hydrates providers, memory, planners, and tools, then
+The factory reads `legionaire.config.json`, hydrates providers, memory, planners, and tools, then
 returns both the `agent` and the underlying orchestrator. See [Configuration reference](docs/configuration.md)
 for the schema and extension points. The low-level APIs remain available when you need manual
 control:
@@ -143,15 +143,26 @@ npm run dashboard
 The server launches on <http://localhost:5173> and serves a secure, client-side UI that keeps API keys in your browser's local storage. You can:
 
 - Register built-in or custom providers and supply API keys when you run an agent.
-- Add shared tools and toggle them per agent.
+- Add shared tools from presets (including calculator and web-search templates), then toggle them per agent.
+- Edit tool `options` JSON and planner input schemas directly from the tool editor.
+- Use built-in platform primitives out of the box: `tool.list`, `tool.call`, `memory.kv_*`, `memory.blob_*`, `secrets.get`, `audit.log_event`.
+- Use guarded ops tools out of the box: `schema.validate_json`, `web.fetch`, `http.request`, `fs.list/read/write`, `artifact.pack`.
+- Use guarded dev tools out of the box: `fs.diff`, `git.status/diff/commit/branch`.
+- Use explicit safety/browser tools out of the box: `web.browser_session`, `prompt_injection.scan`, `redaction.apply`, `policy.check`, `allowlist.enforce`.
+- Use structured data tools out of the box: `db.query_sql`, `vector.upsert/search`, `etl.csv_read/write`.
+- Use restricted execution tools out of the box: `python.run_sandbox`, `node.run_sandbox`, `shell.run_restricted`.
+- Use communication tools out of the box: `email.search/send`, `calendar.list/create/update`, `chat.post_message`.
+- Use control and plugin tools out of the box: `connector.invoke`, `plan.create/update`, `task.spawn`, `budget.get/consume`.
+- For adapter-backed tools, use `options.remote` (base URL + API key env names) to connect without writing custom adapter modules.
 - Edit the configuration JSON with schema validation feedback.
 - Execute prompts directly to verify the agent pipeline.
-- Download the generated `feather.config.json` and a ready-to-run `run-agent.ts` script.
+- Download a runnable agent package (`.tar.gz`) with `legionaire.config.json`, `.env.example`, and `src/run-agent.mjs`.
+- Download raw `legionaire.config.json` and a sample script when you only need source files.
 
 See [docs/dashboard.md](docs/dashboard.md) for architecture details and extension tips.
 
 ```typescript
-import { Agent, InMemoryMemoryManager, createJsonPlanner, createCalcTool } from "feather-agent";
+import { Agent, InMemoryMemoryManager, createJsonPlanner, createCalcTool } from "legionaire";
 
 // (Assumes a Feather orchestrator is already instantiated as shown above.)
 const planner = createJsonPlanner({
@@ -191,6 +202,7 @@ const agent = new Agent({
 - **[System Overview](docs/overview.md)** - Architecture and design decisions
 - **[Migration Guide](docs/migration-guide.md)** - Transition from manual wiring to `createAgent`
 - **[Troubleshooting](docs/troubleshooting.md)** - Common issues and solutions
+- **[Remote Tool Contract](docs/remote-tool-contract.md)** - Backend endpoint contract for `options.remote`
 - **[API Reference](#api-reference)** - Complete TypeScript definitions
 
 ## 🎯 Use Cases
@@ -308,7 +320,7 @@ const feather = new Feather({
 ```
 
 ### Configuration File
-Create `feather.config.json` for declarative configuration:
+Create `legionaire.config.json` for declarative configuration:
 
 ```json
 {
@@ -348,8 +360,8 @@ Create `feather.config.json` for declarative configuration:
 
 Use semantic model names:
 ```typescript
-import { buildRegistry } from "feather-agent";
-import config from "./feather.config.json" assert { type: "json" };
+import { buildRegistry } from "legionaire";
+import config from "./legionaire.config.json" assert { type: "json" };
 
 const registry = buildRegistry(config);
 const feather = new Feather({ registry });
@@ -367,28 +379,28 @@ Install globally or use with npx:
 
 ```bash
 # Install globally
-npm install -g feather-agent
+npm install -g legionaire
 
 # Use with npx
-npx feather chat -m gpt-4 -q "What is machine learning?"
+npx legionaire chat -m gpt-4 -q "What is machine learning?"
 
 # With specific provider
-npx feather chat -p openai -m gpt-4 -q "Hello world"
+npx legionaire chat -p openai -m gpt-4 -q "Hello world"
 
 # With config file
-npx feather chat -c ./my-config.json -m fast -q "Explain AI"
+npx legionaire chat -c ./my-config.json -m fast -q "Explain AI"
 ```
 
 ### CLI Options
 
 ```bash
-feather chat [options]
+legionaire chat [options]
 
 Options:
   -p, --provider <provider>  Provider name (optional with config)
   -m, --model <model>        Model name or alias
   -q, --query <query>        User message
-  -c, --config <file>        Config file path (default: feather.config.json)
+  -c, --config <file>        Config file path (default: legionaire.config.json)
   -h, --help                 Show help
 ```
 
@@ -397,7 +409,7 @@ Options:
 Create providers for any LLM service:
 
 ```typescript
-import { ChatProvider } from "feather-agent";
+import { ChatProvider } from "legionaire";
 
 export function customProvider(config: { apiKey: string }): ChatProvider {
   return {
@@ -490,9 +502,9 @@ const feather = new Feather({
 ### Unit Tests
 ```typescript
 import { describe, it, expect, vi } from "vitest";
-import { Feather } from "feather-agent";
+import { Feather } from "legionaire";
 
-describe("Feather Orchestrator", () => {
+describe("Legionaire", () => {
   it("should handle fallback correctly", async () => {
     const mockProvider = {
       id: "mock",
@@ -529,7 +541,7 @@ describe("Feather Orchestrator", () => {
 
 ### Integration Tests
 ```typescript
-import { Feather, openai } from "feather-agent";
+import { Feather, openai } from "legionaire";
 
 describe("Integration Tests", () => {
   it("should work with real OpenAI API", async () => {
@@ -599,7 +611,7 @@ export function withTelemetry<T>(
   operation: string,
   fn: () => Promise<T>
 ): Promise<T> {
-  const tracer = trace.getTracer('feather');
+  const tracer = trace.getTracer('legionaire');
   const span = tracer.startSpan(operation);
   
   return context.with(trace.setSpan(context.active(), span), async () => {
@@ -694,9 +706,9 @@ OPENAI_API_KEY=sk-proj-...
 ANTHROPIC_API_KEY=sk-ant-...
 
 # Optional: Custom configurations
-FEATHER_CONFIG_PATH=/app/config/feather.config.json
-FEATHER_LOG_LEVEL=info
-FEATHER_RATE_LIMIT_ENABLED=true
+LEGIONAIRE_CONFIG_PATH=/app/config/legionaire.config.json
+LEGIONAIRE_LOG_LEVEL=info
+LEGIONAIRE_RATE_LIMIT_ENABLED=true
 ```
 
 ### Kubernetes ConfigMap
@@ -704,9 +716,9 @@ FEATHER_RATE_LIMIT_ENABLED=true
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: feather-config
+  name: legionaire-config
 data:
-  feather.config.json: |
+  legionaire.config.json: |
     {
       "policy": "cheapest",
       "providers": {
@@ -772,8 +784,8 @@ Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for detai
 
 **Need help?** 
 - 📖 Check the [documentation](docs/)
-- 🐛 Report issues on [GitHub](https://github.com/Geddydukes/feather-agent/issues)
-- 💬 Join our [Discord community](https://discord.gg/feather-agent)
+- 🐛 Report issues on [GitHub](https://github.com/Geddydukes/legionaire/issues)
+- 💬 Join our [Discord community](https://discord.gg/legionaire)
 - 📧 Contact us at [geddydukes@gmail.com](mailto:geddydukes@gmail.com)
 
 **Star us on GitHub** ⭐ to show your support!

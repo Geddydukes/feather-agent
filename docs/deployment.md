@@ -1,6 +1,6 @@
 # Production Deployment Guide
 
-This guide covers deploying Feather Orchestrator in production environments, including Docker, Kubernetes, cloud platforms, and monitoring setup.
+This guide covers deploying Legionaire in production environments, including Docker, Kubernetes, cloud platforms, and monitoring setup.
 
 ## Table of Contents
 
@@ -33,12 +33,12 @@ RUN npm ci --only=production
 
 # Copy application code
 COPY dist/ ./dist/
-COPY feather.config.json ./
+COPY legionaire.config.json ./
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs
-RUN adduser -S feather -u 1001
-USER feather
+RUN adduser -S legionaire -u 1001
+USER legionaire
 
 # Expose port
 EXPOSE 3000
@@ -75,12 +75,12 @@ RUN npm ci --only=production && npm cache clean --force
 
 # Copy built application
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/feather.config.json ./
+COPY --from=builder /app/legionaire.config.json ./
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs
-RUN adduser -S feather -u 1001
-USER feather
+RUN adduser -S legionaire -u 1001
+USER legionaire
 
 EXPOSE 3000
 
@@ -96,7 +96,7 @@ CMD ["node", "dist/index.js"]
 version: '3.8'
 
 services:
-  feather-app:
+  legionaire-app:
     build: .
     ports:
       - "3000:3000"
@@ -119,14 +119,14 @@ services:
   postgres:
     image: postgres:15-alpine
     environment:
-      - POSTGRES_DB=feather
-      - POSTGRES_USER=feather
+      - POSTGRES_DB=legionaire
+      - POSTGRES_USER=legionaire
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U feather"]
+      test: ["CMD-SHELL", "pg_isready -U legionaire"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -156,7 +156,7 @@ volumes:
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: feather-agent
+  name: legionaire
 ```
 
 ### ConfigMap
@@ -165,10 +165,10 @@ metadata:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: feather-config
-  namespace: feather-agent
+  name: legionaire-config
+  namespace: legionaire
 data:
-  feather.config.json: |
+  legionaire.config.json: |
     {
       "policy": "cheapest",
       "providers": {
@@ -210,8 +210,8 @@ data:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: feather-secrets
-  namespace: feather-agent
+  name: legionaire-secrets
+  namespace: legionaire
 type: Opaque
 data:
   OPENAI_API_KEY: <base64-encoded-key>
@@ -226,21 +226,21 @@ data:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: feather-agent
-  namespace: feather-agent
+  name: legionaire
+  namespace: legionaire
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: feather-agent
+      app: legionaire
   template:
     metadata:
       labels:
-        app: feather-agent
+        app: legionaire
     spec:
       containers:
-      - name: feather-app
-        image: feather-agent:latest
+      - name: legionaire-app
+        image: legionaire:latest
         ports:
         - containerPort: 3000
         env:
@@ -249,27 +249,27 @@ spec:
         - name: OPENAI_API_KEY
           valueFrom:
             secretKeyRef:
-              name: feather-secrets
+              name: legionaire-secrets
               key: OPENAI_API_KEY
         - name: ANTHROPIC_API_KEY
           valueFrom:
             secretKeyRef:
-              name: feather-secrets
+              name: legionaire-secrets
               key: ANTHROPIC_API_KEY
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:
-              name: feather-secrets
+              name: legionaire-secrets
               key: DATABASE_URL
         - name: REDIS_URL
           valueFrom:
             secretKeyRef:
-              name: feather-secrets
+              name: legionaire-secrets
               key: REDIS_URL
         volumeMounts:
         - name: config
-          mountPath: /app/feather.config.json
-          subPath: feather.config.json
+          mountPath: /app/legionaire.config.json
+          subPath: legionaire.config.json
         resources:
           requests:
             memory: "256Mi"
@@ -292,7 +292,7 @@ spec:
       volumes:
       - name: config
         configMap:
-          name: feather-config
+          name: legionaire-config
 ```
 
 ### Service
@@ -301,11 +301,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: feather-agent-service
-  namespace: feather-agent
+  name: legionaire-service
+  namespace: legionaire
 spec:
   selector:
-    app: feather-agent
+    app: legionaire
   ports:
   - port: 80
     targetPort: 3000
@@ -318,13 +318,13 @@ spec:
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: feather-agent-hpa
-  namespace: feather-agent
+  name: legionaire-hpa
+  namespace: legionaire
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: feather-agent
+    name: legionaire
   minReplicas: 3
   maxReplicas: 10
   metrics:
@@ -348,8 +348,8 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: feather-agent-ingress
-  namespace: feather-agent
+  name: legionaire-ingress
+  namespace: legionaire
   annotations:
     kubernetes.io/ingress.class: nginx
     cert-manager.io/cluster-issuer: letsencrypt-prod
@@ -358,17 +358,17 @@ metadata:
 spec:
   tls:
   - hosts:
-    - api.feather-agent.com
-    secretName: feather-agent-tls
+    - api.legionaire.com
+    secretName: legionaire-tls
   rules:
-  - host: api.feather-agent.com
+  - host: api.legionaire.com
     http:
       paths:
       - path: /
         pathType: Prefix
         backend:
           service:
-            name: feather-agent-service
+            name: legionaire-service
             port:
               number: 80
 ```
@@ -381,7 +381,7 @@ spec:
 
 ```json
 {
-  "family": "feather-agent",
+  "family": "legionaire",
   "networkMode": "awsvpc",
   "requiresCompatibilities": ["FARGATE"],
   "cpu": "512",
@@ -390,8 +390,8 @@ spec:
   "taskRoleArn": "arn:aws:iam::account:role/ecsTaskRole",
   "containerDefinitions": [
     {
-      "name": "feather-app",
-      "image": "your-account.dkr.ecr.region.amazonaws.com/feather-agent:latest",
+      "name": "legionaire-app",
+      "image": "your-account.dkr.ecr.region.amazonaws.com/legionaire:latest",
       "portMappings": [
         {
           "containerPort": 3000,
@@ -407,17 +407,17 @@ spec:
       "secrets": [
         {
           "name": "OPENAI_API_KEY",
-          "valueFrom": "arn:aws:secretsmanager:region:account:secret:feather/openai-api-key"
+          "valueFrom": "arn:aws:secretsmanager:region:account:secret:legionaire/openai-api-key"
         },
         {
           "name": "ANTHROPIC_API_KEY",
-          "valueFrom": "arn:aws:secretsmanager:region:account:secret:feather/anthropic-api-key"
+          "valueFrom": "arn:aws:secretsmanager:region:account:secret:legionaire/anthropic-api-key"
         }
       ],
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
-          "awslogs-group": "/ecs/feather-agent",
+          "awslogs-group": "/ecs/legionaire",
           "awslogs-region": "us-west-2",
           "awslogs-stream-prefix": "ecs"
         }
@@ -438,9 +438,9 @@ spec:
 
 ```json
 {
-  "serviceName": "feather-agent-service",
-  "cluster": "feather-cluster",
-  "taskDefinition": "feather-agent",
+  "serviceName": "legionaire-service",
+  "cluster": "legionaire-cluster",
+  "taskDefinition": "legionaire",
   "desiredCount": 3,
   "launchType": "FARGATE",
   "networkConfiguration": {
@@ -452,8 +452,8 @@ spec:
   },
   "loadBalancers": [
     {
-      "targetGroupArn": "arn:aws:elasticloadbalancing:region:account:targetgroup/feather-tg/1234567890123456",
-      "containerName": "feather-app",
+      "targetGroupArn": "arn:aws:elasticloadbalancing:region:account:targetgroup/legionaire-tg/1234567890123456",
+      "containerName": "legionaire-app",
       "containerPort": 3000
     }
   ],
@@ -473,7 +473,7 @@ spec:
 apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
-  name: feather-agent
+  name: legionaire
   annotations:
     run.googleapis.com/ingress: all
     run.googleapis.com/execution-environment: gen2
@@ -490,7 +490,7 @@ spec:
       containerConcurrency: 100
       timeoutSeconds: 300
       containers:
-      - image: gcr.io/project-id/feather-agent:latest
+      - image: gcr.io/project-id/legionaire:latest
         ports:
         - containerPort: 3000
         env:
@@ -499,12 +499,12 @@ spec:
         - name: OPENAI_API_KEY
           valueFrom:
             secretKeyRef:
-              name: feather-secrets
+              name: legionaire-secrets
               key: OPENAI_API_KEY
         - name: ANTHROPIC_API_KEY
           valueFrom:
             secretKeyRef:
-              name: feather-secrets
+              name: legionaire-secrets
               key: ANTHROPIC_API_KEY
         resources:
           limits:
@@ -534,12 +534,12 @@ spec:
 ```yaml
 apiVersion: 2021-09-01
 location: eastus
-name: feather-agent
+name: legionaire
 properties:
   containers:
-  - name: feather-app
+  - name: legionaire-app
     properties:
-      image: your-registry.azurecr.io/feather-agent:latest
+      image: your-registry.azurecr.io/legionaire:latest
       resources:
         requests:
           cpu: 1
@@ -561,7 +561,7 @@ properties:
     ports:
     - protocol: TCP
       port: 3000
-    dnsNameLabel: feather-agent
+    dnsNameLabel: legionaire
 tags: {}
 type: Microsoft.ContainerInstance/containerGroups
 ```
@@ -581,13 +581,13 @@ OPENAI_API_KEY=sk-proj-...
 ANTHROPIC_API_KEY=sk-ant-...
 
 # Database
-DATABASE_URL=postgresql://user:password@host:5432/feather
+DATABASE_URL=postgresql://user:password@host:5432/legionaire
 REDIS_URL=redis://host:6379
 
 # Monitoring
 OTEL_EXPORTER_OTLP_ENDPOINT=https://api.honeycomb.io
 OTEL_EXPORTER_OTLP_HEADERS=x-honeycomb-team=your-api-key
-OTEL_SERVICE_NAME=feather-agent
+OTEL_SERVICE_NAME=legionaire
 
 # Security
 JWT_SECRET=your-jwt-secret
@@ -613,7 +613,7 @@ CIRCUIT_BREAKER_RESET_TIMEOUT_MS=30000
 #### Using External Config Service
 
 ```typescript
-import { Feather } from "feather-agent";
+import { Feather } from "legionaire";
 
 class ConfigManager {
   private config: any;
@@ -662,7 +662,7 @@ const feather = new Feather(configManager.getFeatherConfig());
 
 ```typescript
 import express from 'express';
-import { Feather } from 'feather-agent';
+import { Feather } from 'legionaire';
 
 const app = express();
 
@@ -730,24 +730,24 @@ async function checkProviders() {
 ### Metrics Collection
 
 ```typescript
-import { Feather } from 'feather-agent';
+import { Feather } from 'legionaire';
 import { Counter, Histogram, Gauge } from 'prom-client';
 
 // Prometheus metrics
 const requestCounter = new Counter({
-  name: 'feather_requests_total',
+  name: 'legionaire_requests_total',
   help: 'Total number of requests',
   labelNames: ['provider', 'model', 'status']
 });
 
 const requestDuration = new Histogram({
-  name: 'feather_request_duration_seconds',
+  name: 'legionaire_request_duration_seconds',
   help: 'Request duration in seconds',
   labelNames: ['provider', 'model']
 });
 
 const costGauge = new Gauge({
-  name: 'feather_cost_usd_total',
+  name: 'legionaire_cost_usd_total',
   help: 'Total cost in USD',
   labelNames: ['provider', 'model']
 });
@@ -804,7 +804,7 @@ import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentation
 
 // Initialize OpenTelemetry
 const sdk = new NodeSDK({
-  serviceName: 'feather-agent',
+  serviceName: 'legionaire',
   instrumentations: [getNodeAutoInstrumentations()],
 });
 
@@ -815,7 +815,7 @@ export function withTelemetry<T>(
   operation: string,
   fn: () => Promise<T>
 ): Promise<T> {
-  const tracer = trace.getTracer('feather');
+  const tracer = trace.getTracer('legionaire');
   const span = tracer.startSpan(operation);
   
   return context.with(trace.setSpan(context.active(), span), async () => {
@@ -838,7 +838,7 @@ const feather = new Feather({
   providers: { /* ... */ },
   middleware: [
     async (ctx, next) => {
-      return withTelemetry(`feather.${ctx.provider}.${ctx.model}`, async () => {
+      return withTelemetry(`legionaire..`, async () => {
         await next();
       });
     }
@@ -858,7 +858,7 @@ const logger = winston.createLogger({
     winston.format.errors({ stack: true }),
     winston.format.json()
   ),
-  defaultMeta: { service: 'feather-agent' },
+  defaultMeta: { service: 'legionaire' },
   transports: [
     new winston.transports.File({ filename: 'error.log', level: 'error' }),
     new winston.transports.File({ filename: 'combined.log' }),
@@ -908,7 +908,7 @@ const feather = new Feather({
 ### API Key Management
 
 ```typescript
-import { Feather } from 'feather-agent';
+import { Feather } from 'legionaire';
 import { KMS } from 'aws-sdk';
 
 class SecureConfigManager {
@@ -943,7 +943,7 @@ class SecureConfigManager {
 ### PII Redaction
 
 ```typescript
-import { Feather } from 'feather-agent';
+import { Feather } from 'legionaire';
 
 const feather = new Feather({
   providers: { /* ... */ },
@@ -1082,7 +1082,7 @@ const feather = new Feather({
 ### Memory Optimization
 
 ```typescript
-import { Feather } from 'feather-agent';
+import { Feather } from 'legionaire';
 
 // Configure memory limits
 const feather = new Feather({
@@ -1145,7 +1145,7 @@ if (cluster.isMaster) {
 ### Load Balancing
 
 ```typescript
-import { Feather } from 'feather-agent';
+import { Feather } from 'legionaire';
 
 class LoadBalancedFeather {
   private instances: Feather[];
@@ -1179,7 +1179,7 @@ const loadBalancedFeather = new LoadBalancedFeather(instances);
 ### Backup Strategy
 
 ```typescript
-import { Feather } from 'feather-agent';
+import { Feather } from 'legionaire';
 
 class BackupManager {
   private feather: Feather;
@@ -1214,7 +1214,7 @@ class BackupManager {
 ### Circuit Breaker
 
 ```typescript
-import { Feather } from 'feather-agent';
+import { Feather } from 'legionaire';
 
 class CircuitBreakerFeather {
   private feather: Feather;

@@ -1,6 +1,8 @@
 import type { MemoryGetContextOptions, MemoryManager, MemoryTurn } from "../memory/types.js";
 import type { Tool } from "../tools/types.js";
 import type { ToolCache, ToolCacheOptions } from "../core/tool-cache.js";
+import type { AllowlistPolicy } from "../tools/allowlist.js";
+import type { ToolRuntime, ToolRuntimeOptions } from "../tools/runtime.js";
 import type { AgentPolicyConfig, AgentPolicies } from "./policies.js";
 import type { AgentQuotaConfig, AgentQuotaManager } from "./quotas.js";
 import type { ContextBuilder, ContextBuilderOptions, ContextDigest } from "./context-builder.js";
@@ -116,6 +118,9 @@ export interface AgentConfig<TTurn extends AgentMemoryTurn = AgentMemoryTurn> {
   policies?: AgentPolicies | AgentPolicyConfig;
   quotas?: AgentQuotaManager | AgentQuotaConfig;
   toolCache?: ToolCache | ToolCacheOptions;
+  toolRuntime?: ToolRuntime;
+  toolRuntimeOptions?: ToolRuntimeOptions;
+  toolAllowlist?: AllowlistPolicy;
   shouldStop?: AgentShouldStopEvaluator;
   context?: AgentContextConfig;
 }

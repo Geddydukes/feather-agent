@@ -74,3 +74,5 @@ export type FeatherEvent =
   | { type: "rate.wait"; key: string; waitMs: number }
   | { type: "breaker.open"; provider: string }
   | { type: "breaker.close"; provider: string };
+
+export type LegionaireEvent = FeatherEvent;

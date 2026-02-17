@@ -1,6 +1,6 @@
 # API Reference
 
-Complete TypeScript API reference for Feather Orchestrator.
+Complete TypeScript API reference for Legionaire.
 
 ## Core Classes
 
@@ -98,6 +98,7 @@ interface CreateAgentOptions {
   config?: string | object;
   agent?: string;
   cwd?: string;
+  env?: (key: string) => string | undefined;
   overrides?: Partial<AgentConfigOverrides>;
 }
 
@@ -112,9 +113,10 @@ interface CreateAgentResult {
 function createAgent(opts?: string | CreateAgentOptions): Promise<CreateAgentResult>
 ```
 
-Loads configuration from disk (default `feather.config.json`) and hydrates a fully configured
+Loads configuration from disk (default `legionaire.config.json`) and hydrates a fully configured
 `Agent` plus the underlying `Feather` orchestrator. Use `overrides` to inject runtime dependencies
-such as custom memory managers or planners for testing.
+such as custom memory managers or planners for testing. Use `env` to provide request-scoped
+environment values (for example API keys) without mutating `process.env`.
 
 #### `AgentOpts`
 
@@ -433,7 +435,8 @@ interface ModelConfig {
 
 ### `buildRegistry(config: FeatherConfig): ProviderRegistry`
 
-Builds a provider registry from configuration.
+Builds a provider registry from the legacy provider-only configuration. For full project configs,
+use `loadProjectConfig` + `buildProviders`.
 
 ## Observability
 
@@ -528,7 +531,7 @@ interface RetryInfo {
 
 ## CLI
 
-### `feather chat [options]`
+### `legionaire chat [options]`
 
 Command-line interface for chat operations.
 
@@ -537,8 +540,11 @@ Command-line interface for chat operations.
 - `-p, --provider <provider>` - Provider name (optional with config)
 - `-m, --model <model>` - Model name or alias
 - `-q, --query <query>` - User message
-- `-c, --config <file>` - Config file path (default: feather.config.json)
+- `-c, --config <file>` - Config file path (default: legionaire.config.json)
 - `-h, --help` - Show help
+
+The CLI reads the same project configuration used by `createAgent`. When used only for chat,
+the config may omit `agents` and only define providers.
 
 ## Type Definitions
 
@@ -605,7 +611,7 @@ interface MiddlewareContext {
 ### Basic Usage
 
 ```typescript
-import { Feather, openai } from "feather-agent";
+import { Feather, openai } from "legionaire";
 
 const feather = new Feather({
   providers: {
@@ -623,10 +629,10 @@ const response = await feather.chat({
 ### Config-driven agent usage
 
 ```typescript
-import { createAgent } from "feather-agent";
+import { createAgent } from "legionaire";
 
 const { agent, orchestrator } = await createAgent({
-  config: new URL("./feather.config.json", import.meta.url).pathname
+  config: new URL("./legionaire.config.json", import.meta.url).pathname
 });
 
 const result = await agent.run({
@@ -638,7 +644,7 @@ const result = await agent.run({
 ### Manual agent wiring
 
 ```typescript
-import { Agent, InMemoryMemoryManager, createJsonPlanner, createCalcTool } from "feather-agent";
+import { Agent, InMemoryMemoryManager, createJsonPlanner, createCalcTool } from "legionaire";
 
 const agent = new Agent({
   id: "calculator",
@@ -667,7 +673,7 @@ const result = await agent.run({
 ### Custom Provider
 
 ```typescript
-import { ChatProvider } from "feather-agent";
+import { ChatProvider } from "legionaire";
 
 function customProvider(config: { apiKey: string }): ChatProvider {
   return {

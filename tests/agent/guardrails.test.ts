@@ -160,7 +160,7 @@ describe("Agent guardrails", () => {
     });
 
     expect(toolInvoked).toBe(true);
-    expect(capturedInputs).toEqual([{ secret: "token-123" }]);
+    expect(capturedInputs).toEqual([{ secret: "[REDACTED]" }]);
     expect(result.status).toBe("completed");
     const success = result as AgentRunSuccess;
     expect(success.steps[0].actions[0].input).toEqual({ secret: "[redacted]" });
@@ -183,7 +183,7 @@ describe("Agent guardrails", () => {
     };
 
     const auditEvents: unknown[] = [];
-    const expectedHash = JSON.stringify({ token: "abcd-1234" }).length;
+    const expectedHash = JSON.stringify({ token: "[REDACTED]" }).length;
 
     const agent = new Agent({
       planner: async ({ context }: PlannerContext): Promise<AgentPlannerResult> => {

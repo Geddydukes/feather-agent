@@ -1,20 +1,32 @@
 import { describe, it, expect } from "vitest";
 import { sseToDeltas, ndjsonToDeltas } from "../src/core/stream.js";
 
+const enc = new TextEncoder();
+
+function makeStreamResponse(chunks: string[]) {
+  let index = 0;
+  return {
+    ok: true,
+    status: 200,
+    body: {
+      getReader: () => ({
+        read: async () => {
+          if (index >= chunks.length) {
+            return { value: undefined, done: true };
+          }
+          const value = enc.encode(chunks[index]);
+          index += 1;
+          return { value, done: false };
+        },
+      }),
+    },
+  } as any;
+}
+
 describe("Stream Parsers", () => {
   describe("sseToDeltas", () => {
     it("should parse basic SSE data", async () => {
-      const mockResponse = {
-        ok: true,
-        body: {
-          getReader: () => ({
-            read: async () => ({
-              value: new TextEncoder().encode('data: {"content": "hello"}\n\n'),
-              done: false
-            })
-          })
-        }
-      } as any;
+      const mockResponse = makeStreamResponse(['data: {"content": "hello"}\n\n']);
 
       const pick = (json: any) => json.content;
       const results: any[] = [];
@@ -27,17 +39,7 @@ describe("Stream Parsers", () => {
     });
 
     it("should handle CRLF line endings", async () => {
-      const mockResponse = {
-        ok: true,
-        body: {
-          getReader: () => ({
-            read: async () => ({
-              value: new TextEncoder().encode('data: {"content": "hello"}\r\n\r\n'),
-              done: false
-            })
-          })
-        }
-      } as any;
+      const mockResponse = makeStreamResponse(['data: {"content": "hello"}\r\n\r\n']);
 
       const pick = (json: any) => json.content;
       const results: any[] = [];
@@ -50,17 +52,7 @@ describe("Stream Parsers", () => {
     });
 
     it("should ignore heartbeat lines", async () => {
-      const mockResponse = {
-        ok: true,
-        body: {
-          getReader: () => ({
-            read: async () => ({
-              value: new TextEncoder().encode(': heartbeat\ndata: {"content": "hello"}\n\n'),
-              done: false
-            })
-          })
-        }
-      } as any;
+      const mockResponse = makeStreamResponse([': heartbeat\ndata: {"content": "hello"}\n\n']);
 
       const pick = (json: any) => json.content;
       const results: any[] = [];
@@ -73,17 +65,7 @@ describe("Stream Parsers", () => {
     });
 
     it("should handle [DONE] signal", async () => {
-      const mockResponse = {
-        ok: true,
-        body: {
-          getReader: () => ({
-            read: async () => ({
-              value: new TextEncoder().encode('data: [DONE]\n\n'),
-              done: false
-            })
-          })
-        }
-      } as any;
+      const mockResponse = makeStreamResponse(['data: [DONE]\n\n']);
 
       const pick = (json: any) => json.content;
       const results: any[] = [];
@@ -96,17 +78,7 @@ describe("Stream Parsers", () => {
     });
 
     it("should handle malformed JSON gracefully", async () => {
-      const mockResponse = {
-        ok: true,
-        body: {
-          getReader: () => ({
-            read: async () => ({
-              value: new TextEncoder().encode('data: invalid json\ndata: {"content": "hello"}\n\n'),
-              done: false
-            })
-          })
-        }
-      } as any;
+      const mockResponse = makeStreamResponse(['data: invalid json\ndata: {"content": "hello"}\n\n']);
 
       const pick = (json: any) => json.content;
       const results: any[] = [];
@@ -119,17 +91,7 @@ describe("Stream Parsers", () => {
     });
 
     it("should handle partial frames", async () => {
-      const mockResponse = {
-        ok: true,
-        body: {
-          getReader: () => ({
-            read: async () => ({
-              value: new TextEncoder().encode('data: {"content": "hel'),
-              done: false
-            })
-          })
-        }
-      } as any;
+      const mockResponse = makeStreamResponse(['data: {"content": "hel']);
 
       const pick = (json: any) => json.content;
       const results: any[] = [];
@@ -144,17 +106,7 @@ describe("Stream Parsers", () => {
 
   describe("ndjsonToDeltas", () => {
     it("should parse NDJSON data", async () => {
-      const mockResponse = {
-        ok: true,
-        body: {
-          getReader: () => ({
-            read: async () => ({
-              value: new TextEncoder().encode('{"content": "hello"}\n{"content": "world"}\n'),
-              done: false
-            })
-          })
-        }
-      } as any;
+      const mockResponse = makeStreamResponse(['{"content": "hello"}\n{"content": "world"}\n']);
 
       const pick = (json: any) => json.content;
       const results: any[] = [];
@@ -167,17 +119,7 @@ describe("Stream Parsers", () => {
     });
 
     it("should ignore empty lines", async () => {
-      const mockResponse = {
-        ok: true,
-        body: {
-          getReader: () => ({
-            read: async () => ({
-              value: new TextEncoder().encode('\n{"content": "hello"}\n\n'),
-              done: false
-            })
-          })
-        }
-      } as any;
+      const mockResponse = makeStreamResponse(['\n{"content": "hello"}\n\n']);
 
       const pick = (json: any) => json.content;
       const results: any[] = [];
@@ -190,17 +132,7 @@ describe("Stream Parsers", () => {
     });
 
     it("should handle malformed JSON gracefully", async () => {
-      const mockResponse = {
-        ok: true,
-        body: {
-          getReader: () => ({
-            read: async () => ({
-              value: new TextEncoder().encode('invalid json\n{"content": "hello"}\n'),
-              done: false
-            })
-          })
-        }
-      } as any;
+      const mockResponse = makeStreamResponse(['invalid json\n{"content": "hello"}\n']);
 
       const pick = (json: any) => json.content;
       const results: any[] = [];
@@ -213,17 +145,7 @@ describe("Stream Parsers", () => {
     });
 
     it("should handle partial lines", async () => {
-      const mockResponse = {
-        ok: true,
-        body: {
-          getReader: () => ({
-            read: async () => ({
-              value: new TextEncoder().encode('{"content": "hel'),
-              done: false
-            })
-          })
-        }
-      } as any;
+      const mockResponse = makeStreamResponse(['{"content": "hel']);
 
       const pick = (json: any) => json.content;
       const results: any[] = [];

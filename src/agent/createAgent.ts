@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+
 import type { Agent } from "./Agent.js";
 import { Agent as AgentImpl } from "./Agent.js";
 import type { AgentConfig, AgentMemoryTurn, AgentShouldStopEvaluator, Planner } from "./types.js";
@@ -23,12 +26,14 @@ import type { ToolCache, ToolCacheOptions } from "../core/tool-cache.js";
 import type { NormalisedProjectConfig } from "../core/config-loader.js";
 
 export interface CreateAgentOptions<TTurn extends AgentMemoryTurn = AgentMemoryTurn> {
-  /** Path to a configuration file or configuration object. Defaults to `feather.config.json`. */
+  /** Path to a configuration file or configuration object. Defaults to `legionaire.config.json` (falls back to `feather.config.json`). */
   config?: string | object;
   /** Agent identifier within the config. Defaults to `defaults.agent` or the sole agent entry. */
   agent?: string;
   /** Working directory used for resolving relative module imports. */
   cwd?: string;
+  /** Optional environment resolver used by provider factories. Defaults to `process.env`. */
+  env?: (key: string) => string | undefined;
   /**
    * Overrides applied to the resolved agent configuration. Useful when providing custom
    * runtime dependencies such as an in-memory implementation for tests.
@@ -61,13 +66,15 @@ export interface CreateAgentResult<TTurn extends AgentMemoryTurn = AgentMemoryTu
   project: NormalisedProjectConfig;
 }
 
-const DEFAULT_CONFIG_PATH = "feather.config.json";
+const DEFAULT_CONFIG_PATH = "legionaire.config.json";
+const LEGACY_CONFIG_PATH = "feather.config.json";
 
 export async function createAgent<TTurn extends AgentMemoryTurn = AgentMemoryTurn>(
   input?: string | CreateAgentOptions<TTurn>
 ): Promise<CreateAgentResult<TTurn>> {
   const options = typeof input === "string" ? { config: input } : input ?? {};
-  const configSource = options.config ?? DEFAULT_CONFIG_PATH;
+  const envResolver = (key: string) => options.env?.(key) ?? process.env[key];
+  const configSource = options.config ?? resolveDefaultConfigSource(options.cwd);
   const { baseDir, config: project } = await loadProjectConfig(configSource, { cwd: options.cwd });
   const agentName = resolveAgentName(options.agent, project);
   const definition = project.agents[agentName];
@@ -77,10 +84,13 @@ export async function createAgent<TTurn extends AgentMemoryTurn = AgentMemoryTur
 
   // Validate the definition explicitly to surface helpful errors when using programmatic overrides.
   AgentDefinitionSchema.parse(definition);
+  if (!definition.planner) {
+    throw new Error("Agent configuration must include a planner");
+  }
 
   const providerRegistry = createProviderFactoryRegistry({
     baseDir,
-    env: (key) => process.env[key],
+    env: envResolver,
   });
   const { providers, registry } = await buildProviders(project.providers.entries, {
     policy: project.providers.policy,
@@ -88,9 +98,9 @@ export async function createAgent<TTurn extends AgentMemoryTurn = AgentMemoryTur
   });
   const orchestrator = new Feather({ providers, registry });
 
-  const sharedTools = await loadSharedTools(project.tools, baseDir);
+  const sharedTools = await loadSharedTools(project.tools, baseDir, envResolver);
 
-  const agentTools = await loadAgentTools(definition.tools, sharedTools, baseDir);
+  const agentTools = await loadAgentTools(definition.tools, sharedTools, baseDir, envResolver);
   const overrideTools = options.overrides?.tools;
   const toolInstances = overrideTools ?? agentTools.map((item) => item.tool);
   const plannerTools = overrideTools
@@ -135,11 +145,25 @@ export async function createAgent<TTurn extends AgentMemoryTurn = AgentMemoryTur
   } satisfies CreateAgentResult<TTurn>;
 }
 
+function resolveDefaultConfigSource(cwd?: string): string {
+  const root = cwd ?? process.cwd();
+  const preferred = path.resolve(root, DEFAULT_CONFIG_PATH);
+  if (fs.existsSync(preferred)) {
+    return preferred;
+  }
+  const legacy = path.resolve(root, LEGACY_CONFIG_PATH);
+  if (fs.existsSync(legacy)) {
+    return legacy;
+  }
+  return preferred;
+}
+
 async function loadSharedTools(
   entries: Record<string, ModuleReferenceConfig & { name?: string; description?: string; planner?: LoadedTool["planner"] }>,
-  baseDir: string
+  baseDir: string,
+  env: (key: string) => string | undefined
 ): Promise<Record<string, LoadedTool>> {
-  const registry = createToolRegistry({ baseDir });
+  const registry = createToolRegistry({ baseDir, env });
   const result: Record<string, LoadedTool> = {};
   for (const [name, definition] of Object.entries(entries)) {
     result[name] = await instantiateTool(definition, registry);
@@ -148,17 +172,19 @@ async function loadSharedTools(
 }
 
 async function loadAgentTools(
-  references: AgentDefinitionConfig["tools"],
+  references: AgentDefinitionConfig["tools"] | undefined,
   shared: Record<string, LoadedTool>,
-  baseDir: string
+  baseDir: string,
+  env: (key: string) => string | undefined
 ): Promise<LoadedTool[]> {
-  const registry = createToolRegistry({ baseDir });
+  const registry = createToolRegistry({ baseDir, env });
   const loaded: LoadedTool[] = [];
-  for (const entry of references) {
+  for (const entry of references ?? []) {
     if (typeof entry === "string") {
       const tool = shared[entry];
       if (!tool) {
-        throw new Error(`Unknown tool reference '${entry}' in agent configuration`);
+        loaded.push(await instantiateTool({ builtin: entry }, registry));
+        continue;
       }
       loaded.push(tool);
       continue;
@@ -244,19 +270,59 @@ async function buildContext(
 }
 
 function buildPlannerToolDescriptions(tools: LoadedTool[]): PlannerToolDescription[] {
-  return tools.map(({ tool, planner }) => ({
+  const descriptions = tools.map(({ tool, planner }) => ({
     name: tool.name,
     description: planner?.description ?? tool.description ?? `Tool ${tool.name}`,
     inputSchema: planner?.inputSchema,
   }));
+  return withCorePlannerTools(descriptions);
 }
 
 function buildPlannerToolDescriptionsFromTools(tools: Tool[]): PlannerToolDescription[] {
-  return tools.map((tool) => ({
+  const descriptions = tools.map((tool) => ({
     name: tool.name,
     description: tool.description ?? `Tool ${tool.name}`,
     inputSchema: undefined,
   }));
+  return withCorePlannerTools(descriptions);
+}
+
+function withCorePlannerTools(input: PlannerToolDescription[]): PlannerToolDescription[] {
+  const byName = new Map<string, PlannerToolDescription>(input.map((entry) => [entry.name, entry]));
+  if (!byName.has("tool.list")) {
+    byName.set("tool.list", {
+      name: "tool.list",
+      description: "List available tools, schemas, auth needs, and safety metadata.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          safety_tags: {
+            type: "array",
+            items: { type: "string" },
+          },
+          capabilities: { type: "object" },
+        },
+      },
+    });
+  }
+  if (!byName.has("tool.call")) {
+    byName.set("tool.call", {
+      name: "tool.call",
+      description: "Execute a tool through the standard runtime pipeline.",
+      inputSchema: {
+        type: "object",
+        required: ["tool_name", "args", "timeout_ms"],
+        properties: {
+          tool_name: { type: "string" },
+          args: {},
+          timeout_ms: { type: "integer" },
+          idempotency_key: { type: "string" },
+          dry_run: { type: "boolean" },
+        },
+      },
+    });
+  }
+  return [...byName.values()];
 }
 
 function applyOverrides<TTurn extends AgentMemoryTurn>(
@@ -297,6 +363,9 @@ function resolveAgentName(requested: string | undefined, project: NormalisedProj
     return project.defaults.agent;
   }
   const names = Object.keys(project.agents);
+  if (names.length === 0) {
+    throw new Error("No agents defined in configuration");
+  }
   if (names.length === 1) {
     return names[0];
   }
@@ -304,7 +373,13 @@ function resolveAgentName(requested: string | undefined, project: NormalisedProj
 }
 
 function normalisePlannerReference(input: AgentDefinitionConfig["planner"]): ModuleReferenceConfig {
-  if ("kind" in input) {
+  if (!input) {
+    throw new Error("Agent configuration must include a planner");
+  }
+  if ("builtin" in input || "module" in input) {
+    return input;
+  }
+  if ("kind" in input || "model" in input) {
     return {
       builtin: "json",
       options: {

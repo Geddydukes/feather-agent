@@ -43,7 +43,7 @@ function createMockProvider(id: string, behavior: "success" | "fail" | "slow" | 
   return baseProvider;
 }
 
-describe("Feather Orchestrator", () => {
+describe("Legionaire", () => {
   let feather: Feather;
 
   beforeEach(() => {

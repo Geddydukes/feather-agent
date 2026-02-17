@@ -1,6 +1,6 @@
-# Contributing to Feather Agent
+# Contributing to Legionaire
 
-Thank you for your interest in contributing to Feather Agent! This guide will help you get started with contributing to the project.
+Thank you for your interest in contributing to Legionaire! This guide will help you get started with contributing to the project.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.
 
 ### Prerequisites
 
-- **Node.js 18+** (uses native `fetch`)
+- **Node.js 18+** (uses native `fetch`, Node 20/22 recommended for tests)
 - **npm** or **pnpm** or **yarn**
 - **Git**
 - **TypeScript** knowledge
@@ -36,12 +36,12 @@ This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.
 1. Fork the repository on GitHub
 2. Clone your fork locally:
    ```bash
-   git clone https://github.com/Geddydukes/feather-agent.git
-   cd feather-agent
+   git clone https://github.com/Geddydukes/legionaire.git
+   cd legionaire
    ```
 3. Add the upstream repository:
    ```bash
-   git remote add upstream https://github.com/Geddydukes/feather-agent.git
+   git remote add upstream https://github.com/Geddydukes/legionaire.git
    ```
 
 ## Development Setup
@@ -85,6 +85,9 @@ npm run build
 
 # Run tests
 npm test
+
+# Run tests with a stable, low-parallelism profile
+npm run test:stable
 
 # Run tests in watch mode
 npm run test:watch
@@ -324,7 +327,7 @@ async function processWithCancellation(
 
 ```typescript
 // ✅ Good
-describe('Feather Orchestrator', () => {
+describe('Legionaire', () => {
   let feather: Feather;
   
   beforeEach(() => {
@@ -355,6 +358,12 @@ describe('Feather Orchestrator', () => {
   });
 });
 ```
+
+### Running Tests
+
+- Run the full suite with `npm test`.
+- If you hit memory issues on Node 23, use `npm run test:stable`.
+- For persistent OOM failures, use Node 20 or 22 for local runs.
 
 ### Test Categories
 
@@ -884,9 +893,9 @@ We follow [Semantic Versioning](https://semver.org/):
 ## Getting Help
 
 - **Documentation** - Check the [docs/](docs/) directory
-- **Issues** - Search [GitHub Issues](https://github.com/Geddydukes/feather-agent/issues)
-- **Discussions** - Use [GitHub Discussions](https://github.com/Geddydukes/feather-agent/discussions)
-- **Discord** - Join our [Discord community](https://discord.gg/feather-agent)
+- **Issues** - Search [GitHub Issues](https://github.com/Geddydukes/legionaire/issues)
+- **Discussions** - Use [GitHub Discussions](https://github.com/Geddydukes/legionaire/discussions)
+- **Discord** - Join our [Discord community](https://discord.gg/legionaire)
 - **Email** - Contact [geddydukes@gmail.com](mailto:geddydukes@gmail.com)
 
 ## Recognition
@@ -898,4 +907,4 @@ Contributors will be recognized in:
 - **GitHub** - Contributor statistics
 - **Documentation** - Code examples and guides
 
-Thank you for contributing to Feather Orchestrator! 🚀
+Thank you for contributing to Legionaire! 🚀

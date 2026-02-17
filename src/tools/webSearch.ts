@@ -1,4 +1,5 @@
 import type { Tool, ToolRunContext } from "./types.js";
+import type { JsonSchema } from "./manifest.js";
 
 export interface WebSearchArgs {
   query: string;
@@ -39,6 +40,31 @@ const DEFAULT_TOP_K = 5;
 const DEFAULT_MAX_TOP_K = 10;
 const DEFAULT_MIN_QUERY_LENGTH = 3;
 const DEFAULT_MAX_QUERY_LENGTH = 256;
+const WEB_SEARCH_INPUT_SCHEMA: JsonSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["query"],
+  properties: {
+    query: { type: "string", minLength: DEFAULT_MIN_QUERY_LENGTH, maxLength: DEFAULT_MAX_QUERY_LENGTH },
+    topK: { type: "integer", minimum: 1, maximum: DEFAULT_MAX_TOP_K },
+  },
+};
+
+const WEB_SEARCH_OUTPUT_SCHEMA: JsonSchema = {
+  type: "array",
+  items: {
+    type: "object",
+    required: ["title", "url", "snippet"],
+    properties: {
+      title: { type: "string" },
+      url: { type: "string" },
+      snippet: { type: "string" },
+      score: { type: "number" },
+      publishedAt: { type: "string" },
+      source: { type: "string" },
+    },
+  },
+};
 
 export function createWebSearchTool(
   adapter: WebSearchAdapter,
@@ -71,6 +97,28 @@ export function createWebSearchTool(
   return {
     name,
     description,
+    manifest: {
+      name,
+      description,
+      input_schema: WEB_SEARCH_INPUT_SCHEMA,
+      output_schema: WEB_SEARCH_OUTPUT_SCHEMA,
+      auth_requirements: [],
+      safety_tags: ["network", "untrusted-content"],
+      capabilities: {
+        network: true,
+        filesystem: false,
+        write: false,
+        side_effects: false,
+      },
+      scopes: {
+        max_bytes: 131_072,
+      },
+      cache: {
+        cache_ttl_ms: options.cacheTtlSec ? options.cacheTtlSec * 1_000 : 60_000,
+        cache_key_fields: ["query", "topK"],
+        stale_while_revalidate_ms: 30_000,
+      },
+    },
     cacheTtlSec: options.cacheTtlSec,
     async run(args: WebSearchArgs, ctx: ToolRunContext): Promise<WebSearchResult[]> {
       if (!args || typeof args.query !== "string") {

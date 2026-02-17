@@ -1,5 +1,5 @@
 {
-  "name": "feather-agent",
+  "name": "legionaire",
   "version": "0.1.0",
   "description": "Tiny, fast, provider-agnostic LLM agent framework (orchestrator, fallback, race, rate limits, retries, streaming, cost, middleware).",
   "type": "module",
@@ -12,11 +12,11 @@
       "types": "./dist/index.d.ts"
     },
     "./cli": {
-      "import": "./dist/src/bin/feather.js"
+      "import": "./dist/src/bin/legionaire.js"
     }
   },
   "bin": {
-    "feather": "dist/src/bin/feather.js"
+    "legionaire": "dist/src/bin/legionaire.js"
   },
   "files": [
     "dist/**/*",
@@ -28,6 +28,7 @@
     "clean": "rm -rf dist",
     "prepublishOnly": "npm run clean && npm run build",
     "test": "vitest run",
+    "test:stable": "NODE_OPTIONS=--max-old-space-size=8192 vitest run --pool=forks --maxWorkers=1 --no-file-parallelism --no-isolate",
     "test:ci": "npm ci && npm run test",
     "test:watch": "vitest",
     "examples:chat": "node dist/examples/chat.js",
@@ -59,12 +60,12 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Geddydukes/feather-agent.git"
+    "url": "git+https://github.com/Geddydukes/legionaire.git"
   },
   "bugs": {
-    "url": "https://github.com/Geddydukes/feather-agent/issues"
+    "url": "https://github.com/Geddydukes/legionaire/issues"
   },
-  "homepage": "https://github.com/Geddydukes/feather-agent#readme",
+  "homepage": "https://github.com/Geddydukes/legionaire#readme",
   "dependencies": {
     "zod": "^3.22.0"
   },

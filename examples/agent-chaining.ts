@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Agent Chaining Examples with Feather Orchestrator
+ * Agent Chaining Examples with Legionaire
  * Demonstrates how to chain multiple agents together for complex workflows
  */
 
@@ -604,7 +604,7 @@ async function contextPassingChain() {
 
 // Main execution
 async function main() {
-  console.log("🤖 Feather Orchestrator - Agent Chaining Examples\n");
+  console.log("🤖 Legionaire - Agent Chaining Examples\n");
   
   // Check for API keys
   if (!process.env.OPENAI_API_KEY && !process.env.ANTHROPIC_API_KEY) {

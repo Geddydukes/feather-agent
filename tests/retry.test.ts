@@ -35,10 +35,10 @@ describe("withRetry", () => {
       .mockRejectedValueOnce({ retryAfter: 0.05 }) // 50ms
       .mockResolvedValue("success");
 
-    await withRetry(fn, { maxAttempts: 2, baseMs: 10 });
+    await withRetry(fn, { maxAttempts: 2, baseMs: 10, jitter: "none" });
     
     const elapsed = Date.now() - start;
-    expect(elapsed).toBeGreaterThanOrEqual(30); // More lenient tolerance
+    expect(elapsed).toBeGreaterThanOrEqual(45); // Allow some scheduling jitter
     expect(fn).toHaveBeenCalledTimes(2);
   });
 

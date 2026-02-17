@@ -1,7 +1,8 @@
 import { performance } from "node:perf_hooks";
 import type { MemoryGetContextOptions, MemoryManager } from "../memory/types.js";
 import type { Tool } from "../tools/types.js";
-import { ToolCache, type ToolCacheDecision, type ToolCacheOptions, isToolCache } from "../core/tool-cache.js";
+import { ToolCache, type ToolCacheOptions, isToolCache } from "../core/tool-cache.js";
+import { ToolRegistry, ToolRuntime, createToolCallTool, createToolListTool } from "../tools/runtime.js";
 import {
   createPolicyManager,
   isAgentPolicies,
@@ -67,6 +68,7 @@ export class Agent<TTurn extends AgentMemoryTurn = AgentMemoryTurn> {
   private readonly policies?: AgentPolicies;
   private readonly quotas?: AgentQuotaManager;
   private readonly toolCache?: ToolCache;
+  private readonly toolRuntime: ToolRuntime;
   private readonly memory: MemoryManager<TTurn>;
   private readonly contextBuilder: ContextBuilder;
   private readonly contextDefaults: AgentContextDefaults;
@@ -93,6 +95,26 @@ export class Agent<TTurn extends AgentMemoryTurn = AgentMemoryTurn> {
     this.policies = normalizePolicies(config.policies);
     this.quotas = normalizeQuotas(config.quotas);
     this.toolCache = normalizeToolCache(config.toolCache);
+    const registry = new ToolRegistry();
+    for (const tool of this.tools.values()) {
+      registry.register(tool);
+    }
+    this.toolRuntime = config.toolRuntime ?? new ToolRuntime(registry, {
+      allowlist: config.toolAllowlist,
+      cache: this.toolCache,
+    });
+    if (!config.toolRuntime) {
+      const toolListTool = createToolListTool(this.toolRuntime);
+      if (!this.tools.has(toolListTool.name)) {
+        this.tools.set(toolListTool.name, toolListTool);
+        registry.register(toolListTool);
+      }
+      const toolCallTool = createToolCallTool(this.toolRuntime);
+      if (!this.tools.has(toolCallTool.name)) {
+        this.tools.set(toolCallTool.name, toolCallTool);
+        registry.register(toolCallTool);
+      }
+    }
     this.memory = config.onEvent
       ? withMemoryEventing<TTurn>(config.memory, {
           agentId: config.id,
@@ -440,20 +462,6 @@ export class Agent<TTurn extends AgentMemoryTurn = AgentMemoryTurn> {
       }
     }
 
-    const cacheTtl = determineToolCacheTtl(tool, this.toolCache);
-    let cacheDecision: ToolCacheDecision | undefined;
-    let cacheHit = false;
-    if (this.toolCache && cacheTtl > 0) {
-      try {
-        cacheDecision = await this.toolCache.prepare({ tool: tool.name, args: toolInput });
-        cacheHit = Boolean(cacheDecision.hit);
-      } catch (error) {
-        console.warn("Tool cache prepare failed", error);
-        cacheDecision = { cacheable: false };
-      }
-    }
-
-    const startedAt = new Date();
     const startHr = performance.now();
     this.emit({
       type: "agent.tool.start",
@@ -461,35 +469,68 @@ export class Agent<TTurn extends AgentMemoryTurn = AgentMemoryTurn> {
       iteration,
       action: actionForEvents,
       tool: tool.name,
-      cached: cacheHit,
+      cached: false,
       agentId: this.id
     });
 
-    let result: unknown;
-    if (cacheHit && cacheDecision?.hit) {
-      result = cacheDecision.hit.value;
-    } else {
-      try {
-        result = await tool.run(toolInput, { signal, metadata });
-      } catch (error) {
-        const durationMs = performance.now() - startHr;
-        this.emit({
-          type: "agent.tool.error",
-          sessionId,
-          iteration,
-          action: actionForEvents,
-          tool: tool.name,
-          error,
-          durationMs,
-          cached: false,
-          agentId: this.id
-        });
-        throw new AgentError("TOOL_EXECUTION_FAILED", `Tool "${tool.name}" failed`, { cause: error });
-      }
+    let runtimeEnvelope;
+    try {
+      runtimeEnvelope = await this.toolRuntime.callTool(
+        {
+          request_id: `${sessionId}:${iteration}:${tool.name}:${Date.now()}`,
+          tool_name: tool.name,
+          args: toolInput,
+          timeout_ms: resolveToolTimeoutMs(actionForEvents.input),
+          idempotency_key: extractIdempotencyKey(actionForEvents.input),
+        },
+        {
+          signal,
+          metadata: {
+            ...(metadata ?? {}),
+            agentId: this.id,
+            sessionId,
+          },
+          allowlist: this.config.toolAllowlist,
+        }
+      );
+    } catch (error) {
+      const durationMs = performance.now() - startHr;
+      this.emit({
+        type: "agent.tool.error",
+        sessionId,
+        iteration,
+        action: actionForEvents,
+        tool: tool.name,
+        error,
+        durationMs,
+        cached: false,
+        agentId: this.id
+      });
+      throw new AgentError("TOOL_EXECUTION_FAILED", `Tool "${tool.name}" failed`, { cause: error });
     }
 
-    const durationMs = performance.now() - startHr;
-    const finishedAt = new Date();
+    const cacheHit = runtimeEnvelope.meta.cache_hit;
+    const durationMs = runtimeEnvelope.meta.duration_ms;
+    const startedAt = new Date(runtimeEnvelope.meta.started_at);
+    const finishedAt = new Date(runtimeEnvelope.meta.ended_at);
+
+    if (!runtimeEnvelope.ok) {
+      const agentError = toAgentToolError(tool.name, runtimeEnvelope.error);
+      this.emit({
+        type: "agent.tool.error",
+        sessionId,
+        iteration,
+        action: actionForEvents,
+        tool: tool.name,
+        error: agentError,
+        durationMs,
+        cached: cacheHit,
+        agentId: this.id,
+      });
+      throw agentError;
+    }
+
+    let result: unknown = runtimeEnvelope.data;
 
     let sanitizedResult = result;
     let auditPayload: unknown | undefined;
@@ -520,14 +561,6 @@ export class Agent<TTurn extends AgentMemoryTurn = AgentMemoryTurn> {
           agentId: this.id
         });
         throw agentError;
-      }
-    }
-
-    if (!cacheHit && cacheDecision?.cacheable && this.toolCache && cacheTtl > 0) {
-      try {
-        await this.toolCache.write(cacheDecision, sanitizedResult, cacheTtl);
-      } catch (error) {
-        console.warn("Tool cache write failed", error);
       }
     }
 
@@ -926,12 +959,46 @@ function normalizeToolCache(toolCache: AgentConfig["toolCache"]): ToolCache | un
   return new ToolCache(toolCache as ToolCacheOptions);
 }
 
-function determineToolCacheTtl(tool: Tool, cache: ToolCache | undefined): number {
-  if (!cache) {
-    return 0;
+function resolveToolTimeoutMs(input: unknown): number {
+  if (!input || typeof input !== "object") {
+    return 60_000;
   }
-  const ttl = typeof tool.cacheTtlSec === "number" ? tool.cacheTtlSec : 0;
-  return ttl > 0 ? ttl : 0;
+  const candidate = (input as Record<string, unknown>).timeout_ms;
+  if (typeof candidate !== "number" || !Number.isFinite(candidate) || candidate <= 0) {
+    return 60_000;
+  }
+  return Math.floor(Math.min(candidate, 300_000));
+}
+
+function extractIdempotencyKey(input: unknown): string | undefined {
+  if (!input || typeof input !== "object") {
+    return undefined;
+  }
+  const candidate = (input as Record<string, unknown>).idempotency_key;
+  if (typeof candidate !== "string") {
+    return undefined;
+  }
+  const trimmed = candidate.trim();
+  return trimmed === "" ? undefined : trimmed;
+}
+
+function toAgentToolError(toolName: string, error: { code?: string; message?: string; details?: Record<string, unknown> } | undefined): AgentError {
+  if (!error) {
+    return new AgentError("TOOL_EXECUTION_FAILED", `Tool "${toolName}" failed`);
+  }
+  if (error.code === "ALLOWLIST_REJECTED") {
+    return new AgentError("TOOL_NOT_ALLOWED", error.message ?? `Tool "${toolName}" is not allowed`, {
+      details: error.details,
+    });
+  }
+  if (error.code?.includes("VALIDATION")) {
+    return new AgentError("TOOL_VALIDATION_FAILED", error.message ?? `Tool "${toolName}" failed validation`, {
+      details: error.details,
+    });
+  }
+  return new AgentError("TOOL_EXECUTION_FAILED", error.message ?? `Tool "${toolName}" failed`, {
+    details: error.details,
+  });
 }
 
 function sanitizeBlockedAction(action: AgentPlanAction): AgentPlanAction {

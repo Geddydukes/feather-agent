@@ -1,0 +1,18 @@
+{
+  "extends": "./base.json",
+  "providers": {
+    "entries": {
+      "mock": {
+        "models+": [{ "name": "slow" }],
+        "models-": [{ "name": "mock-model" }]
+      }
+    }
+  },
+  "agents": {
+    "default": {
+      "id": "domain-agent",
+      "planner": { "systemPrompt": "You are helpful." }
+    }
+  },
+  "defaults": { "agent": "default" }
+}

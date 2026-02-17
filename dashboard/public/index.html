@@ -3,12 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Feather Agent Dashboard</title>
+    <title>Legionaire Dashboard</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <header class="page-header">
-      <h1>Feather Agent Dashboard</h1>
+      <h1>Legionaire Dashboard</h1>
       <p class="tagline">Configure providers, tools, and agents without writing boilerplate.</p>
     </header>
 
@@ -17,6 +17,7 @@
         <h2>Provider API Keys</h2>
         <p class="card-help">Secrets never leave your browser. They are stored in local storage and sent to the server only when you run an agent.</p>
         <div id="providers"></div>
+        <div id="env-vars"></div>
         <details class="card-details">
           <summary>Add provider</summary>
           <form id="provider-form" class="stack">
@@ -60,6 +61,13 @@
           <summary>Add tool</summary>
           <form id="tool-form" class="stack">
             <label>
+              Preset (optional)
+              <select name="preset" id="tool-preset">
+                <option value="">Custom</option>
+              </select>
+            </label>
+            <p id="tool-preset-note" class="card-help"></p>
+            <label>
               Tool name
               <input type="text" name="name" required placeholder="search" />
             </label>
@@ -86,6 +94,15 @@
               Planner description (optional)
               <textarea name="plannerDescription" rows="2" placeholder="Visible to planners selecting tools"></textarea>
             </label>
+            <label>
+              Tool options JSON (optional)
+              <textarea name="optionsJson" rows="4" placeholder='{"defaultTopK": 5}'></textarea>
+            </label>
+            <label>
+              Planner input schema JSON (optional)
+              <textarea name="plannerInputSchema" rows="4" placeholder='{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}'></textarea>
+            </label>
+            <p id="tool-form-error" class="error"></p>
             <button type="submit" class="primary">Add tool</button>
           </form>
         </details>
@@ -132,6 +149,7 @@
         </label>
         <div class="button-row">
           <button id="run-agent" class="primary">Execute</button>
+          <button id="download-package" type="button">Download package</button>
           <button id="download-config" type="button">Download config</button>
           <button id="download-script" type="button">Download sample script</button>
         </div>
@@ -141,7 +159,7 @@
 
     <footer class="page-footer">
       <p>
-        Built with Feather Agent. Read the <a href="https://github.com/Geddydukes/feather-agent" target="_blank" rel="noopener noreferrer">documentation</a>
+        Built with Legionaire. Read the <a href="https://github.com/Geddydukes/legionaire" target="_blank" rel="noopener noreferrer">documentation</a>
         for deeper integration details.
       </p>
     </footer>

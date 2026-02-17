@@ -13,9 +13,8 @@
   },
   "agents": {
     "default": {
-      "planner": { "kind": "json", "model": "fast" },
-      "tools": [],
-      "memory": { "builtin": "inmemory" }
+      "planner": { "model": "fast" },
+      "memory": "inmemory"
     }
   },
   "defaults": { "agent": "default" }

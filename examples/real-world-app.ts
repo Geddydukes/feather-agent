@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Real-world application example using Feather Orchestrator
+ * Real-world application example using Legionaire
  * This demonstrates how to use the orchestrator in a production application
  */
 
@@ -127,7 +127,7 @@ async function streamingWithMiddleware() {
 async function configDrivenSetup() {
   console.log("\n⚙️ Configuration-Driven Setup");
   
-  // This would typically load from feather.config.json
+  // This would typically load from legionaire.config.json
   const config = {
     policy: "cheapest" as const,
     providers: {
@@ -221,7 +221,7 @@ async function batchProcessing() {
 
 // Main execution
 async function main() {
-  console.log("🎯 Feather Orchestrator - Real-World Examples\n");
+  console.log("🎯 Legionaire - Real-World Examples\n");
   
   // Check for API keys
   if (!process.env.OPENAI_API_KEY && !process.env.ANTHROPIC_API_KEY) {

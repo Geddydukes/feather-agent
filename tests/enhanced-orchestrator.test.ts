@@ -48,7 +48,7 @@ function mockProvider(id: string, behavior: "ok" | "fail" | "slow"): ChatProvide
   };
 }
 
-describe("Enhanced Feather Orchestrator", () => {
+describe("Enhanced Legionaire", () => {
   let feather: Feather;
   let events: FeatherEvent[];
 

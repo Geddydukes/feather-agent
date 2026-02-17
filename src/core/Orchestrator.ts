@@ -19,6 +19,8 @@ export interface FeatherOpts {
   middleware?: Middleware[];
 }
 
+export type LegionaireOpts = FeatherOpts;
+
 export class Feather {
   private providers: Record<string, ProviderSpec> = {};
   private registry?: ProviderRegistry;
@@ -370,3 +372,5 @@ export class Feather {
     return out;
   }
 }
+
+export { Feather as Legionaire };

@@ -86,18 +86,65 @@ describe("createAgent", () => {
       overrides: { tools: [stubTool] },
     });
 
-    expect(getCapturePlannerTools()).toEqual([
-      {
-        name: "stub-tool",
-        description: "Stub tool",
-        inputSchema: undefined,
-      },
-    ]);
+    expect(getCapturePlannerTools()).toEqual(
+      expect.arrayContaining([
+        {
+          name: "stub-tool",
+          description: "Stub tool",
+          inputSchema: undefined,
+        },
+        expect.objectContaining({ name: "tool.list" }),
+        expect.objectContaining({ name: "tool.call" }),
+      ])
+    );
   });
 
   it("throws when requested agent is missing", async () => {
     await expect(createAgent({ config: fixture, agent: "missing" })).rejects.toThrow(
       "Agent 'missing' not found"
     );
+  });
+
+  it("supports request-scoped env values for provider factories", async () => {
+    const envProviderModule = path.resolve(__dirname, "../fixtures/providers/env-provider.js");
+    const config = {
+      version: 1,
+      providers: {
+        entries: {
+          envProvider: {
+            module: envProviderModule,
+            export: "createEnvProvider",
+            models: [{ name: "env-model" }],
+          },
+        },
+      },
+      agents: {
+        envAgent: {
+          planner: {
+            kind: "json",
+            model: "env-model",
+          },
+        },
+      },
+      defaults: {
+        agent: "envAgent",
+      },
+    };
+
+    await expect(createAgent({ config })).rejects.toThrow("Missing DASHBOARD_TEST_API_KEY");
+
+    const { agent } = await createAgent({
+      config,
+      env: (key) => (key === "DASHBOARD_TEST_API_KEY" ? "test-key" : undefined),
+    });
+    const result = await agent.run({
+      sessionId: "env-session",
+      input: { role: "user", content: "hello" },
+    });
+    expect(result.status).toBe("completed");
+    if (result.status !== "completed") {
+      throw new Error("expected completed result");
+    }
+    expect(result.output.content).toBe("env-ok");
   });
 });

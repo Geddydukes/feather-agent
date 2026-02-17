@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-This guide will get you up and running with Feather Orchestrator in under 5 minutes. We'll cover both basic orchestration and intelligent agents.
+This guide will get you up and running with Legionaire in under 5 minutes. We'll cover both basic orchestration and intelligent agents.
 
 ## Prerequisites
 
@@ -10,7 +10,7 @@ This guide will get you up and running with Feather Orchestrator in under 5 minu
 ## 1. Installation
 
 ```bash
-npm install feather-agent
+npm install legionaire
 ```
 
 ## 2. Basic Orchestration
@@ -18,7 +18,7 @@ npm install feather-agent
 Let's start with a simple multi-provider setup:
 
 ```typescript
-import { Feather, openai, anthropic } from "feather-agent";
+import { Feather, openai, anthropic } from "legionaire";
 
 // Initialize with multiple providers
 const feather = new Feather({
@@ -103,7 +103,7 @@ Now let's build an intelligent agent that can use tools and maintain memory:
 Start with the in-memory backend for simplicity:
 
 ```typescript
-import { InMemoryMemoryManager } from "feather-agent";
+import { InMemoryMemoryManager } from "legionaire";
 
 const memory = new InMemoryMemoryManager({ 
   maxTurns: 100,  // Keep last 100 conversation turns
@@ -116,7 +116,7 @@ const memory = new InMemoryMemoryManager({
 Use built-in tools or create your own:
 
 ```typescript
-import { createCalcTool, createWebSearchTool } from "feather-agent";
+import { createCalcTool, createWebSearchTool } from "legionaire";
 
 const tools = [
   createCalcTool(),           // Safe arithmetic calculator
@@ -131,7 +131,7 @@ const tools = [
 The planner decides what the agent should do next:
 
 ```typescript
-import { createJsonPlanner } from "feather-agent";
+import { createJsonPlanner } from "legionaire";
 
 const planner = createJsonPlanner({
   callModel: async ({ messages }) => {
@@ -154,7 +154,7 @@ const planner = createJsonPlanner({
 ### Step 4: Create the Agent
 
 ```typescript
-import { Agent } from "feather-agent";
+import { Agent } from "legionaire";
 
 const agent = new Agent({
   id: "helpful-assistant",
@@ -195,7 +195,13 @@ await agent.run({
 
 ### Configuration File
 
-Create `feather.config.json` for declarative setup using the new project schema:
+Configs can be layered with `extends`, and most module references accept shorthand builtin names
+(for example, `"memory": "inmemory"` or `"planner": { "model": "fast" }`). The `legionaire` CLI
+reads the same project config to resolve providers.
+Arrays are replaced by default during merge; append with the `+` suffix (for example,
+`"models+": [...]`) to avoid restating the base list, or remove items with `"models-": [...]`.
+
+Create `legionaire.config.json` for declarative setup using the new project schema:
 
 ```json
 {
@@ -221,12 +227,12 @@ Create `feather.config.json` for declarative setup using the new project schema:
     }
   },
   "tools": {
-    "calculator": { "builtin": "calc" }
+    "calculator": "calc"
   },
   "agents": {
     "default": {
-      "planner": { "kind": "json", "model": "fast", "temperature": 0.1 },
-      "memory": { "builtin": "inmemory", "options": { "maxTurns": 50 } },
+      "planner": { "model": "fast", "temperature": 0.1 },
+      "memory": "inmemory",
       "tools": ["calculator"],
       "context": { "maxTokens": 2000, "maxRecentTurns": 8 }
     }
@@ -240,7 +246,7 @@ Create `feather.config.json` for declarative setup using the new project schema:
 With the config in place you can spin up an agent in five lines:
 
 ```typescript
-import { createAgent } from "feather-agent";
+import { createAgent } from "legionaire";
 
 const { agent } = await createAgent();
 const result = await agent.run({
@@ -399,7 +405,7 @@ const feather = new Feather({
 **Memory issues with agents:**
 ```typescript
 // Use a more efficient memory backend
-import { PostgreSQLMemoryManager } from "feather-agent";
+import { PostgreSQLMemoryManager } from "legionaire";
 
 const memory = new PostgreSQLMemoryManager({
   connectionString: process.env.DATABASE_URL!,
@@ -410,8 +416,8 @@ const memory = new PostgreSQLMemoryManager({
 ### Getting Help
 
 - 📖 Check the [documentation](docs/)
-- 🐛 Report issues on [GitHub](https://github.com/Geddydukes/feather-agent/issues)
-- 💬 Join our [Discord community](https://discord.gg/feather-agent)
+- 🐛 Report issues on [GitHub](https://github.com/Geddydukes/legionaire/issues)
+- 💬 Join our [Discord community](https://discord.gg/legionaire)
 
 ---
 

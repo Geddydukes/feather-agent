@@ -27,10 +27,19 @@ const moduleReferenceRefinement = (value: ModuleReferenceBase, ctx: any) => {
   }
 };
 
-const ModuleReferenceSchemaBase = ModuleReferenceBaseSchema.superRefine(moduleReferenceRefinement);
+const coerceModuleReference = (value: unknown) =>
+  typeof value === "string" ? { builtin: value } : value;
+
+const ModuleReferenceSchemaBase = z.preprocess(
+  coerceModuleReference,
+  ModuleReferenceBaseSchema.superRefine(moduleReferenceRefinement)
+);
 
 const extendModuleReference = <T extends Record<string, any>>(shape: T) =>
-  ModuleReferenceBaseSchema.extend(shape).superRefine(moduleReferenceRefinement);
+  z.preprocess(
+    coerceModuleReference,
+    ModuleReferenceBaseSchema.extend(shape).superRefine(moduleReferenceRefinement)
+  );
 
 export const ModuleReferenceSchema = ModuleReferenceSchemaBase;
 
@@ -54,7 +63,30 @@ export const ProviderDefinitionSchema = extendModuleReference({
   models: z.array(ModelSchema).default([]),
 });
 
+const ProviderDefinitionDefaultsSchema = ModuleReferenceBaseSchema.partial().extend({
+  apiKeyEnv: z.string().optional(),
+  baseUrl: z.string().optional(),
+  pricing: z
+    .object({
+      inputPer1K: z.number().optional(),
+      outputPer1K: z.number().optional(),
+    })
+    .optional(),
+  models: z.array(ModelSchema).optional(),
+});
+
 export const ToolDefinitionSchema = extendModuleReference({
+  name: z.string().optional(),
+  description: z.string().optional(),
+  planner: z
+    .object({
+      description: z.string().optional(),
+      inputSchema: z.unknown().optional(),
+    })
+    .optional(),
+});
+
+const ToolDefinitionDefaultsSchema = ModuleReferenceBaseSchema.partial().extend({
   name: z.string().optional(),
   description: z.string().optional(),
   planner: z
@@ -88,15 +120,15 @@ const ContextConfigSchema = z.object({
 });
 
 const PlannerJsonConfigSchema = z.object({
-  kind: z.literal("json"),
-  model: z.string(),
+  kind: z.literal("json").optional(),
+  model: z.string().optional(),
   provider: z.string().optional(),
   systemPrompt: z.string().optional(),
   temperature: z.number().optional(),
   maxTokens: z.number().int().positive().optional(),
   topP: z.number().optional(),
   modelConfig: z.record(z.unknown()).optional(),
-});
+}).strict();
 
 const PlannerReferenceSchema = z.union([PlannerJsonConfigSchema, ModuleReferenceSchema]);
 
@@ -106,9 +138,9 @@ export const AgentDefinitionSchema = z.object({
   id: z.string().optional(),
   description: z.string().optional(),
   metadata: z.record(z.unknown()).optional(),
-  planner: PlannerReferenceSchema,
+  planner: PlannerReferenceSchema.optional(),
   memory: ModuleReferenceSchema.optional(),
-  tools: z.array(ToolReferenceSchema).default([]),
+  tools: z.array(ToolReferenceSchema).optional(),
   policies: ModuleOrFunctionSchema.optional(),
   quotas: ModuleOrFunctionSchema.optional(),
   toolCache: ModuleOrFunctionSchema.optional(),
@@ -132,12 +164,16 @@ export const FeatherProjectConfigSchema = z.object({
   version: z.literal(1).default(1),
   $schema: z.string().optional(),
   description: z.string().optional(),
+  extends: z.union([z.string(), z.array(z.string())]).optional(),
   providers: z.union([ProvidersSectionSchema, z.record(ProviderDefinitionSchema)]).default({ entries: {} }),
-  tools: ToolsSectionSchema,
-  agents: z.record(AgentDefinitionSchema),
+  tools: ToolsSectionSchema.optional().default({}),
+  agents: z.record(AgentDefinitionSchema).default({}),
   defaults: z
     .object({
       agent: z.string().optional(),
+      providers: ProviderDefinitionDefaultsSchema.optional(),
+      tools: ToolDefinitionDefaultsSchema.optional(),
+      agentConfig: AgentDefinitionSchema.partial().optional(),
     })
     .default({}),
 });
